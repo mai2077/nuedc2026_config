@@ -1,0 +1,13 @@
+#ifndef __BOARD_CONFIG_H__
+#define __BOARD_CONFIG_H__
+
+#ifndef ENCODER1_DIR_HIGH_IS_POSITIVE
+#define ENCODER1_DIR_HIGH_IS_POSITIVE (0U)
+#endif
+
+#ifndef ENCODER2_DIR_HIGH_IS_POSITIVE
+#define ENCODER2_DIR_HIGH_IS_POSITIVE (1U)
+#endif
+
+
+#endif

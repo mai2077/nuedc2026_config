@@ -1,0 +1,1 @@
+tests/bsp_iic_host_test.o: ..\tests\bsp_iic_host_test.c

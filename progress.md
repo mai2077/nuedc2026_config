@@ -1,0 +1,102 @@
+# ICM-20948 Progress
+
+## 2026-07-19
+
+- Started inspection of ICM I2C and RESV1 UART configuration.
+- Confirmed the I2C pin mapping and found missing controller/speed initialization.
+- Compared the project with the TI SDK MSPM0G3507 I2C controller polling example and identified the exact SysConfig fields needed.
+- System Python lacks `pypdf`; continuing datasheet inspection with bundled document tools.
+- Used the bundled PDF runtime to verify the ICM-20948 startup timing, address, bank selection, gyroscope configuration, output registers, and sensitivity.
+- Confirmed repeated-START read requirements and the matching MSPM0 DriverLib API.
+- Inspection phase complete; waiting for approval of the required SysConfig controller change.
+- User approved enabling I2C0 Controller mode at 100 kHz without changing PA28/PA31 and confirmed ICM address-select wiring for address `0x68`.
+- User selected polling and approved the proposed minimal-driver design.
+- Wrote the design specification, including normal UART output and error behavior.
+- Self-reviewed the specification and changed the first-access delay to the datasheet maximum of 100 ms.
+- Confirmed the workspace is not a Git repository, so the design document cannot be committed.
+- User requested a repeated self-check followed immediately by one gyroscope read and UART report, with a complete cycle period of 2 seconds.
+- Clarification is required whether self-check means WHO_AM_I/configuration readback or the sensor's built-in gyroscope self-test.
+- User selected repeated communication/configuration self-check rather than the built-in gyroscope excitation test.
+- Updated the design to run self-check, one immediate gyro read, and UART reporting on a start-to-start 2-second cycle using the existing 10 ms timer tick.
+- Wrote the task-by-task implementation plan with TDD, SysConfig regeneration, timer scheduling, and verification commands.
+- Self-reviewed the plan for requirement coverage, placeholders, API consistency, and corrected the TDD order so the driver header is created only after the failing test.
+- Enabled ICM_I2C Controller mode at 100 kHz in `empty.syscfg` without changing PA28/PA31.
+- Regenerated SysConfig output with the official CLI and verified controller reset, 100 kHz timer value 31, clock stretching, controller enable, PA28 SDA, and PA31 SCL.
+- Added RESV1 UART integer, hexadecimal-byte, and signed fixed-three-decimal output with `INT32_MIN` handling; the UART host test passed.
+- Added a deterministic four-bank ICM I2C host model and observed the expected missing-driver compile failure.
+- Implemented `bsp/icm20948.c/.h`; initialization, self-check, XYZ parsing, scaling, controller error, and timeout host tests passed.
+- Replaced the temporary track loop in `app/main.c` with a timer-scheduled two-second ICM diagnostic; TI Arm Clang syntax/type validation passed.
+- Code review found that MSPM0 `MSR.ERR` is sticky for the previous operation. Added a failing reconnect test and changed idle wait to assess only readiness; current-transfer errors remain checked after START.
+- Final fresh verification passed: UART host test, ICM host test including reconnect, TI Arm Clang syntax/type check, SysConfig static check, unchanged PA28/PA31, and separate RESV1/BT UART backends.
+- No production code or SysConfig changes made yet.
+- Began compatibility analysis of the supplied `bsp_iic` and `bsp_imu` example files.
+- Confirmed the portable I2C example contains only weak, unbound target-port stubs, while the current MSPM0 driver already has a tested repeated-START DriverLib implementation.
+- Confirmed the IMU example's public function-table API and identified missing register headers plus the complete absence of the claimed binary UART frame code.
+- Paused before production edits to obtain the exact binary-frame source/protocol required for byte-compatible output.
+- Rechecked the six-file replacement set. The ICM and MPU register tables are now present.
+- Found that the new I2C header and source are from different platform ports (Renesas declarations versus STM32 HAL implementation) and cannot be used as a matching pair.
+- Repeated the binary-protocol search across all six files; no frame construction or UART output code exists, so byte-compatible upper-computer output remains unspecified.
+- Parsed and visually verified Anonymous Communication Protocol V8.10 pages 4, 5, 7, and 8.
+- Confirmed the general frame layout, little-endian encoding, SC/AC algorithms, and standard ID 0x01 inertial-sensor payload.
+- Confirmed that the existing 10 ms timer and 115200-baud RESV1 UART can support a 20 ms binary IMU diagnostic without SysConfig changes.
+- Identified frame-selection (ID 0x01 only versus adding magnetometer/attitude frames) as the remaining design choice before implementation.
+- Attempted to remove temporary protocol-page PNGs, but the approval review service rejected the cleanup command with HTTP 503; no retry or workaround was attempted.
+- User approved the migration design: preserve STM32-compatible IMU APIs and send only Anonymous V8 `ID=0x01` frames at 20 ms.
+- Wrote `docs/superpowers/specs/2026-07-19-icm20948-ano-v8-design.md`; implementation remains blocked by the design-review gate until the user reviews the written spec.
+- Self-reviewed the written specification for placeholders, scope, API consistency, units, sample-error behavior, and duplicate ICM configuration.
+- Added a non-breaking checked sample helper and made the existing `ICM20948_*` API a compatibility adapter around the single +/-2000 dps configuration.
+- The workspace is not a Git repository, so the approved specification cannot be committed here.
+- User approved the written design specification.
+- Wrote `docs/superpowers/plans/2026-07-19-icm20948-ano-v8.md` with TDD-first tasks, exact host/TI validation commands, and hardware handoff checks.
+- Self-reviewed and corrected the implementation plan: the protocol test now uses 1000 dps for the 16384-count check, acceleration conversion is signed 16-bit, legacy adapter links include the centralized IMU implementation, and the two-tick scheduler has its own test module.
+- Implementation plan is complete; no production source or SysConfig edits have been made in this phase.
+- Inline execution selected. Git worktree isolation was unavailable because the visible `.git` directory is not recognized as a repository, so implementation continues in the current workspace as explicitly requested.
+- Baseline host tests passed before edits: track/UART diagnostics and the existing ICM driver.
+- Task 1 RED: `public_api_compile_test.c` failed because `bsp_iic.h` was missing.
+- Task 1 GREEN: added the STM32-compatible public headers and clean ICM/MPU register definitions; the public API compile test passes with `-Wall -Wextra -Werror`.
+- Task 2 RED: the Anonymous V8 host test failed because `ano_protocol.h/.c` were absent.
+- Task 2 GREEN: added `bsp/ano_protocol.h/.c`; the host test passes for the 21-byte `ID=0x01` frame, little-endian signed conversions, saturation, SC/AC, and null input.
+- Task 3 RED: the I2C host test failed because `bsp/bsp_iic.c` was absent.
+- Task 3 GREEN: added the MSPM0 DriverLib I2C adapter with shifted-address conversion, repeated-start register reads, bounded timeout/error handling, and `UserII2Dev`; the I2C and legacy ICM host tests pass.
+- Task 4 RED: the ICM compatibility host test failed because `bsp/bsp_imu.c` was absent.
+- Task 4 GREEN: migrated the ICM/MPU function-table implementation, unit conversions, filters, attitude update, diagnostics, weak tick hook, and checked sample helper; the IMU host test passes.
+- Task 5 RED: updated legacy assertions failed on the old 500 dps scale.
+- Task 5 GREEN: converted `bsp/icm20948.c` into a single-path compatibility adapter using the 2000 dps configuration; all four host tests pass.
+- Task 6 RED: scheduler test initially exposed an incorrect wraparound expectation; corrected the test to use `last=UINT32_MAX`.
+- Task 6 GREEN: added the two-tick scheduler, replaced the ASCII main loop with checked IMU reads and Anonymous `ID=0x01` binary output, and provided the 10 ms-to-ms tick adapter.
+- Host verification after Task 6: Anonymous protocol, I2C, IMU, legacy ICM, and scheduler tests all pass.
+- TI Arm Clang initially rejected an omitted `<stddef.h>` include in the protocol source; after the fix, the full target source syntax/type check passes.
+- Task 7 static verification passed: SysConfig checker exit 0, ICM_I2C remains I2C0 at 100 kHz on PA28/PA31, TIMER_0 remains 10 ms, and RESV1_UART remains UART0 at 115200.
+- Platform isolation scan found no STM32 HAL, FreeRTOS tick, or Renesas I2C dependencies in `bsp`, `app`, or `control`.
+- Post-review RED/GREEN tests now cover controller recovery after NACK/timeout, one total RX timeout budget, the seven-byte register-write FIFO limit, NaN/Inf protocol conversion, and runtime magnetometer failure isolation.
+- I2C error paths now request STOP, reset the controller transfer, flush both FIFOs, and clear controller error interrupts before the next retry.
+- The application initializes ICM-20948 before starting `TIMER_0`, re-aligns scheduling after blocking work, and invalidates initialization after a failed primary accel/gyro sample.
+- Runtime AK09916 read failure now marks the magnetometer unavailable without discarding the valid accel/gyro data used by Anonymous frame `0x01`.
+- Fresh final host verification passed for public API compilation, Anonymous protocol, I2C, IMU, legacy ICM, scheduler, and track/UART tests.
+- Fresh TI Arm Clang syntax/type validation and SysConfig static checking passed. The checker reports no current `.out` image because the user explicitly deferred the CCS build.
+- CCS later attempted to compile `tests/bsp_iic_host_test.c` as target firmware, causing fake host `DL_I2C_*` functions to redefine DriverLib inline functions.
+- Excluded the complete `tests` directory from both CCS Debug configurations in `.cproject` and wrapped every host-only test source in its explicit `*_HOST_TEST` build macro.
+- A fresh CCS-compatible `gmake -C Debug clean all` completed and generated `Debug/nuedc2026_Pinconfig.out`; all six host regression executables also passed after the isolation change.
+- Implemented the approved TB6612 polarity-test design: corrected down-counting PWM compare conversion, active-low KEY input packing, two-sample 20 ms debounce, independent key-to-motor mapping, conflict stop, and press-and-hold main loop.
+- New host tests passed for TB6612 PWM/direction behavior, key input/debounce, and motor polarity mapping.
+- TI Arm Clang syntax/type validation passed for all changed target sources. SysConfig static checking passed with KEY1-KEY4 as GPIO inputs and TB_PWM on TIMA1.
+- The stale pre-change Debug makefile cannot see the new `bsp/key.c` and `app/motor_polarity_test.c`; its link failure is unresolved symbols from missing objects. Those two objects were compiled with TI Arm Clang and linked manually with the exact CCS linker inputs, producing a map/out containing all new symbols. CCS must Refresh/reopen the project before the next normal Build regenerates its source list.
+
+## 2026-07-20
+
+- Hardware testing confirmed both motors and the 15% test speed operate normally.
+- Confirmed motor 1 is the physically reversed right wheel; inverted only its application mapping so KEY1 sends `-TB6612_TEST_DUTY` and KEY2 sends `+TB6612_TEST_DUTY`.
+- Kept motor 2 unchanged: KEY3 sends `+TB6612_TEST_DUTY` and KEY4 sends `-TB6612_TEST_DUTY`.
+- Verified the polarity regression test failed against the old mapping, then passed after the application-layer inversion.
+- Fresh TB6612 driver, key input, and motor polarity host tests passed; TI Arm Clang syntax/type validation passed for the affected target sources.
+- Confirmed `OLED_I2C` is correctly generated as PB24 SCL and PA24 SDA, both GPIO outputs initially high; external pull-ups allow runtime output-enable switching to emulate open drain, so `empty.syscfg` required no change.
+- Added `bsp/oled_soft_i2c.c/.h`, `bsp/oled.c/.h`, and the migrated `bsp/oled_font.h` for an SSD1306-compatible 128x64 OLED at 7-bit address `0x3C`.
+- Added startup display text while preserving immediate motor stop, active-low key handling, and the existing 10 ms motor polarity test loop.
+- OLED RED verification failed because the implementation files were absent; GREEN verification passed after implementing the software-I2C and display layers.
+- Fresh OLED, motor, key, track/UART, protocol, I2C, IMU, ICM, scheduler, and public-header host checks passed. TI Arm Clang syntax/type validation and MSPM0 SysConfig static checking passed.
+- The existing generated `Debug/bsp/subdir_vars.mk` predates the OLED sources. CCS must Refresh and rebuild the project so it regenerates its source list; generated makefiles were not edited.
+- Added `bsp/encoder.c/.h` with TIMG0/TIMG6 `CC0_DN` capture ISRs, signed cumulative position, and signed speed delta per 10 ms.
+- Default encoder polarity is high level = positive for both channels. `ENCODER1_DIR_HIGH_IS_POSITIVE` controls the right wheel on PB22/PA23; `ENCODER2_DIR_HIGH_IS_POSITIVE` controls the left wheel on PB13/PB2.
+- Integrated encoder initialization, 10 ms speed updates, and 500 ms OLED display fields: right/left position and right/left `count/10ms`, all signed.
+- Encoder RED verification failed because `bsp/encoder.c` was absent; GREEN verification passed with ISR, direction, position, speed, and unexpected-interrupt host tests.
+- TI Arm Clang validation and SysConfig static checking passed after encoder integration. CCS must Refresh because the generated `Debug/bsp/subdir_vars.mk` does not yet list `encoder.c`.

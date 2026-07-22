@@ -1,0 +1,1 @@
+tests/bsp_imu_host_test.o: ..\tests\bsp_imu_host_test.c

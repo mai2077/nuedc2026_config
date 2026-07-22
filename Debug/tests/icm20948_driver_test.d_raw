@@ -1,0 +1,1 @@
+tests/icm20948_driver_test.o: ..\tests\icm20948_driver_test.c

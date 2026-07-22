@@ -1,0 +1,1 @@
+tests/ano_protocol_test.o: ..\tests\ano_protocol_test.c
