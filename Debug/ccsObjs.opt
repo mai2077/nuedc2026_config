@@ -1,5 +1,6 @@
 "./ti_msp_dl_config.o"
 "./startup_mspm0g350x_ticlang.o"
+"./app/display.o"
 "./app/imu_diag_schedule.o"
 "./app/main.o"
 "./app/motor_polarity_test.o"
@@ -19,6 +20,8 @@
 "./bsp/oled_soft_i2c.o"
 "./bsp/tb6612.o"
 "./bsp/track.o"
+"./control/angle_control.o"
+"./control/line_follow.o"
 "./control/wheel_speed.o"
 -l"./device_linker.cmd"
 -ldevice.cmd.genlibs

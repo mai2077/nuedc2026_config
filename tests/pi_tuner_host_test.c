@@ -1,24 +1,65 @@
 #ifdef PI_TUNER_HOST_TEST
 
 #include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "pi_tuner.h"
-#include "wheel_speed.h"
+#include "app/display.h"
+#include "app/pi_tuner.h"
+#include "bsp/bsp_imu.h"
+#include "control/line_follow.h"
+#include "control/wheel_speed.h"
+
+#define TEST_BT_PACKET_LENGTH          (48U)
+#define TEST_BT_PACKET_HEAD            (0xA5U)
+#define TEST_BT_PACKET_TAIL            (0x5AU)
+#define TEST_BT_RUN_OFFSET             (1U)
+#define TEST_BT_SPEED_OFFSET           (2U)
+#define TEST_BT_INNER_PID_OFFSET       (6U)
+#define TEST_BT_ANGLE_PID_OFFSET       (18U)
+#define TEST_BT_LINE_PID_OFFSET        (30U)
+#define TEST_BT_TARGET_YAW_OFFSET      (42U)
+#define TEST_BT_CHECKSUM_OFFSET        (46U)
 
 static int32_t gRightCounts10ms;
 static int32_t gLeftCounts10ms;
 static int16_t gMotor1Command;
 static int16_t gMotor2Command;
-static char gTx[32768];
-static size_t gTxLength;
-static char gBtTx[256];
-static size_t gBtTxLength;
-static char gRx[256];
-static size_t gRxLength;
-static size_t gRxIndex;
+static uint8_t gTrackRawMask;
+static uint8_t gBtRx[128];
+static size_t gBtRxLength;
+static size_t gBtRxIndex;
+static uint8_t gDebugRx[128];
+static size_t gDebugRxLength;
+static size_t gDebugRxIndex;
+
+static uint8_t testImuInit(void)
+{
+    return 0U;
+}
+
+static void testImuUpdateAttitude(
+    IMU_DATA_t sample, ATTITUDE_DATA_t *attitude)
+{
+    (void)sample;
+    if (attitude != 0) {
+        attitude->roll = 0.0f;
+        attitude->pitch = 0.0f;
+        attitude->yaw = 0.0f;
+    }
+}
+
+static IMUInterface_t gTestImuInterface = {
+    testImuInit,
+    0,
+    0,
+    0,
+    0,
+    testImuUpdateAttitude
+};
 
 int32_t ENCODER_getRightSpeed10ms(void)
 {
@@ -46,89 +87,192 @@ void TB6612_stopAll(void)
     gMotor2Command = 0;
 }
 
-static void appendText(const char *text)
+uint8_t TRACK_readRawMask(void)
 {
-    size_t length = strlen(text);
-    assert(gTxLength + length < sizeof(gTx));
-    memcpy(&gTx[gTxLength], text, length + 1U);
-    gTxLength += length;
+    return gTrackRawMask;
 }
 
-void DEBUG_UART_writeString(const char *text)
+void KEY_init(void)
 {
-    appendText(text);
+}
+
+bool KEY_scan10ms(uint8_t *stableMask)
+{
+    if (stableMask != 0) {
+        *stableMask = 0U;
+    }
+    return false;
 }
 
 void DEBUG_UART_writeByte(uint8_t data)
 {
-    char text[2];
-    text[0] = (char)data;
-    text[1] = '\0';
-    appendText(text);
+    (void)data;
+}
+
+void DEBUG_UART_writeString(const char *text)
+{
+    (void)text;
 }
 
 void DEBUG_UART_writeUInt32(uint32_t value)
 {
-    char text[16];
-    (void)snprintf(text, sizeof(text), "%lu", (unsigned long)value);
-    appendText(text);
+    (void)value;
 }
 
 void DEBUG_UART_writeInt32(int32_t value)
 {
-    char text[16];
-    (void)snprintf(text, sizeof(text), "%ld", (long)value);
-    appendText(text);
+    (void)value;
 }
 
 void DEBUG_UART_writeSignedFixed3(int32_t milliValue)
 {
-    char text[24];
-    uint32_t magnitude = (milliValue < 0) ?
-        ((uint32_t)(-(milliValue + 1)) + 1U) : (uint32_t)milliValue;
-
-    (void)snprintf(text, sizeof(text), "%s%lu.%03lu",
-        (milliValue < 0) ? "-" : "",
-        (unsigned long)(magnitude / 1000U),
-        (unsigned long)(magnitude % 1000U));
-    appendText(text);
-}
-
-void BT_UART_writeByte(uint8_t data)
-{
-    assert(gBtTxLength + 1U < sizeof(gBtTx));
-    gBtTx[gBtTxLength++] = (char)data;
-    gBtTx[gBtTxLength] = '\0';
+    (void)milliValue;
 }
 
 uint8_t DEBUG_UART_tryReadByte(uint8_t *data)
 {
-    if (gRxIndex >= gRxLength) {
+    if ((data == 0) || (gDebugRxIndex >= gDebugRxLength)) {
         return 0U;
     }
-    *data = (uint8_t)gRx[gRxIndex++];
+    *data = gDebugRx[gDebugRxIndex++];
     return 1U;
 }
 
-static void clearTx(void)
+void BT_UART_writeByte(uint8_t data)
 {
-    gTxLength = 0U;
-    gTx[0] = '\0';
+    (void)data;
 }
 
-static void clearBtTx(void)
+void BT_UART_writeString(const char *text)
 {
-    gBtTxLength = 0U;
-    gBtTx[0] = '\0';
+    (void)text;
 }
 
-static void feedCommand(const char *command)
+void BT_UART_writeUInt32(uint32_t value)
 {
-    size_t length = strlen(command);
-    assert(length < sizeof(gRx));
-    memcpy(gRx, command, length);
-    gRxLength = length;
-    gRxIndex = 0U;
+    (void)value;
+}
+
+void BT_UART_writeInt32(int32_t value)
+{
+    (void)value;
+}
+
+void BT_UART_writeSignedFixed3(int32_t milliValue)
+{
+    (void)milliValue;
+}
+
+uint8_t BT_UART_tryReadByte(uint8_t *data)
+{
+    if ((data == 0) || (gBtRxIndex >= gBtRxLength)) {
+        return 0U;
+    }
+    *data = gBtRx[gBtRxIndex++];
+    return 1U;
+}
+
+void DISPLAY_reportReceivedLine(DISPLAY_Source source, const char *line)
+{
+    (void)source;
+    (void)line;
+}
+
+void DISPLAY_reportPidDecoded(
+    DISPLAY_Source source, uint16_t kpX100, uint16_t kiX100,
+    uint16_t kdX100)
+{
+    (void)source;
+    (void)kpX100;
+    (void)kiX100;
+    (void)kdX100;
+}
+
+void DISPLAY_reportPidApplied(
+    DISPLAY_Source source, uint16_t kpX100, uint16_t kiX100)
+{
+    (void)source;
+    (void)kpX100;
+    (void)kiX100;
+}
+
+void DISPLAY_reportCommandRejected(
+    DISPLAY_Source source, const char *reason)
+{
+    (void)source;
+    (void)reason;
+}
+
+pIMUInterface_t bsp_imu_get_interface(void)
+{
+    return &gTestImuInterface;
+}
+
+uint8_t bsp_imu_update_9axis_checked(IMU_DATA_t *sample)
+{
+    if (sample != 0) {
+        memset(sample, 0, sizeof(*sample));
+    }
+    return 0U;
+}
+
+void ANO_sendEulerFrame(
+    const ATTITUDE_DATA_t *attitude, uint8_t fusionStatus)
+{
+    (void)attitude;
+    (void)fusionStatus;
+}
+
+static void writeU32Le(uint8_t *buffer, uint8_t offset, uint32_t value)
+{
+    buffer[offset] = (uint8_t)value;
+    buffer[offset + 1U] = (uint8_t)(value >> 8);
+    buffer[offset + 2U] = (uint8_t)(value >> 16);
+    buffer[offset + 3U] = (uint8_t)(value >> 24);
+}
+
+static void writeFloatLe(uint8_t *buffer, uint8_t offset, float value)
+{
+    union {
+        float value;
+        uint32_t bits;
+    } converter;
+
+    converter.value = value;
+    writeU32Le(buffer, offset, converter.bits);
+}
+
+static void writePidLe(
+    uint8_t *buffer, uint8_t offset, float kp, float ki, float kd)
+{
+    writeFloatLe(buffer, offset, kp);
+    writeFloatLe(buffer, (uint8_t)(offset + 4U), ki);
+    writeFloatLe(buffer, (uint8_t)(offset + 8U), kd);
+}
+
+static void feedBtPacket(uint8_t run, int32_t speedMmps,
+    float innerP, float innerI, float innerD,
+    float angleP, float angleI, float angleD,
+    float lineP, float lineI, float lineD, float targetYawDeg)
+{
+    uint8_t checksum = 0U;
+    uint8_t i;
+
+    memset(gBtRx, 0, sizeof(gBtRx));
+    gBtRx[0] = TEST_BT_PACKET_HEAD;
+    gBtRx[TEST_BT_RUN_OFFSET] = run;
+    writeU32Le(gBtRx, TEST_BT_SPEED_OFFSET, (uint32_t)speedMmps);
+    writePidLe(gBtRx, TEST_BT_INNER_PID_OFFSET, innerP, innerI, innerD);
+    writePidLe(gBtRx, TEST_BT_ANGLE_PID_OFFSET, angleP, angleI, angleD);
+    writePidLe(gBtRx, TEST_BT_LINE_PID_OFFSET, lineP, lineI, lineD);
+    writeFloatLe(gBtRx, TEST_BT_TARGET_YAW_OFFSET, targetYawDeg);
+    for (i = TEST_BT_RUN_OFFSET; i < TEST_BT_CHECKSUM_OFFSET; ++i) {
+        checksum = (uint8_t)(checksum + gBtRx[i]);
+    }
+    gBtRx[TEST_BT_CHECKSUM_OFFSET] = checksum;
+    gBtRx[TEST_BT_PACKET_LENGTH - 1U] = TEST_BT_PACKET_TAIL;
+    gBtRxLength = TEST_BT_PACKET_LENGTH;
+    gBtRxIndex = 0U;
     PI_TUNER_pollUart();
 }
 
@@ -138,178 +282,149 @@ static void resetModel(void)
     gLeftCounts10ms = 0;
     gMotor1Command = 0;
     gMotor2Command = 0;
-    clearBtTx();
-    gRxLength = 0U;
-    gRxIndex = 0U;
-    clearTx();
+    gTrackRawMask = 0x04U;
+    gBtRxLength = 0U;
+    gBtRxIndex = 0U;
+    gDebugRxLength = 0U;
+    gDebugRxIndex = 0U;
     PI_TUNER_init();
-    clearTx();
 }
 
-static void testStartsAutomaticallyAndOutputsOnlyNumericCsv(void)
-{
-    resetModel();
-    assert(PI_TUNER_isRunning() != 0U);
-
-    PI_TUNER_update10ms(1U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 300);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
-    assert(gMotor1Command < 0);
-    assert(gMotor2Command == 0);
-#if PI_TUNER_ENABLE_RESV1_TELEMETRY
-    assert(strcmp(gTx,
-        "10,300.00,0.00,105.00,300.00,20.000,0.000,0.000\r\n") == 0);
-    assert(strchr(gTx, '#') == 0);
-#else
-    assert(gTx[0] == '\0');
-#endif
-}
-
-static void testProfileRepeatsEveryTenSeconds(void)
-{
-    resetModel();
-    PI_TUNER_update10ms(1U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 300);
-    PI_TUNER_update10ms(201U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 500);
-    PI_TUNER_update10ms(401U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 700);
-    PI_TUNER_update10ms(601U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 500);
-    PI_TUNER_update10ms(801U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 300);
-    PI_TUNER_update10ms(1001U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 300);
-    assert(PI_TUNER_isRunning() != 0U);
-    assert(gMotor1Command < 0);
-    assert(gMotor2Command == 0);
-}
-
-#if PI_TUNER_ENABLE_RESV1_TELEMETRY
-static void testTelemetryPeriodIsTwentyMilliseconds(void)
-{
-    resetModel();
-    PI_TUNER_update10ms(1U);
-    assert(gTxLength != 0U);
-    clearTx();
-    PI_TUNER_update10ms(2U);
-    assert(gTxLength == 0U);
-    PI_TUNER_update10ms(3U);
-    assert(gTxLength != 0U);
-}
-#endif
-
-static void testSetCommandUpdatesPiSilently(void)
+static void testBluetoothLinePidDrivesOuterLoop(void)
 {
     WHEEL_SPEED_Diagnostics diagnostics;
 
     resetModel();
-    feedCommand("SET P:20.50 I:1.75 D:0\n");
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
-    assert(diagnostics.kpX100 == 2050U);
-    assert(diagnostics.kiX100 == 175U);
-    assert(gTx[0] == '\0');
-
+    feedBtPacket(1U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    gTrackRawMask = 0x01U;
     PI_TUNER_update10ms(1U);
-#if PI_TUNER_ENABLE_RESV1_TELEMETRY
-    assert(strstr(gTx, ",20.500,1.750,0.000\r\n") != 0);
-#else
-    assert(gTx[0] == '\0');
-#endif
-}
 
-static void testIntegerSetCommandIsAccepted(void)
-{
-    WHEEL_SPEED_Diagnostics diagnostics;
-
-    resetModel();
-    feedCommand("SET P:20 I:2 D:0\r\n");
+    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
     WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
     assert(diagnostics.kpX100 == 2000U);
-    assert(diagnostics.kiX100 == 200U);
-    assert(gTx[0] == '\0');
+    assert(diagnostics.kiX100 == 0U);
 }
 
-static void assertInvalidCommandLeavesGainsUnchanged(const char *command)
-{
-    WHEEL_SPEED_Diagnostics before;
-    WHEEL_SPEED_Diagnostics after;
-
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &before);
-    feedCommand(command);
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &after);
-    assert(after.kpX100 == before.kpX100);
-    assert(after.kiX100 == before.kiX100);
-    assert(gTx[0] == '\0');
-}
-
-static void testInvalidCommandsAreIgnoredSilently(void)
-{
-    resetModel();
-    assertInvalidCommandLeavesGainsUnchanged("SET P:20 I:2 D:1\n");
-    assertInvalidCommandLeavesGainsUnchanged("SET P:100.01 I:2 D:0\n");
-    assertInvalidCommandLeavesGainsUnchanged("SET P:20 I:20.01 D:0\n");
-    assertInvalidCommandLeavesGainsUnchanged("SET P:-1 I:2 D:0\n");
-    assertInvalidCommandLeavesGainsUnchanged("SET P:1.234 I:2 D:0\n");
-    assertInvalidCommandLeavesGainsUnchanged("garbage\n");
-}
-
-static void testOverlongLineIsDiscardedAndNextLineRecovers(void)
-{
-    WHEEL_SPEED_Diagnostics diagnostics;
-    char command[100];
-
-    resetModel();
-    memset(command, 'X', sizeof(command));
-    command[sizeof(command) - 2U] = '\n';
-    command[sizeof(command) - 1U] = '\0';
-    feedCommand(command);
-    feedCommand("SET P:12.25 I:0.50 D:0\n");
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
-    assert(diagnostics.kpX100 == 1225U);
-    assert(diagnostics.kiX100 == 50U);
-    assert(gTx[0] == '\0');
-}
-
-static void testGainUpdateResetsPiOutput(void)
+static void testInvalidLinePidRejectsWholePacket(void)
 {
     WHEEL_SPEED_Diagnostics diagnostics;
 
     resetModel();
+    feedBtPacket(1U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    feedBtPacket(1U, 800,
+        10.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        51.0f, 0.0f, 0.0f, 0.0f);
+    gTrackRawMask = 0x01U;
     PI_TUNER_update10ms(1U);
-    assert(WHEEL_SPEED_getRightPwm() != 0);
 
-    clearTx();
-    feedCommand("SET P:10 I:1 D:0\n");
+    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
     WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
-    assert(diagnostics.outputPwm == 0);
-    assert(diagnostics.integralPwm == 0);
-    assert(gTx[0] == '\0');
+    assert(diagnostics.kpX100 == 2000U);
+    assert(diagnostics.kiX100 == 0U);
 }
 
-static void testResv1BytesAreForwardedUnchangedToBluetooth(void)
+static void testRunZeroStopsImmediately(void)
 {
-    const char command[] = "SET P:20.50 I:1.75 D:0\r\nX  !\n";
-
     resetModel();
-    feedCommand(command);
-    assert(strcmp(gBtTx, command) == 0);
+    feedBtPacket(1U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    gTrackRawMask = 0x01U;
+    PI_TUNER_update10ms(1U);
+    assert(gMotor1Command != 0);
+    assert(gMotor2Command != 0);
+
+    feedBtPacket(0U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    assert(PI_TUNER_isRunning() == 0U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 0);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
+    assert(gMotor1Command == 0);
+    assert(gMotor2Command == 0);
+}
+
+static void testSensorDirectionLostLineAndRecovery(void)
+{
+    resetModel();
+    feedBtPacket(1U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+
+    gTrackRawMask = 0x04U;
+    PI_TUNER_update10ms(1U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 400);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 400);
+
+    gTrackRawMask = 0x01U;
+    PI_TUNER_update10ms(2U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
+
+    gTrackRawMask = 0x10U;
+    PI_TUNER_update10ms(3U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
+
+    gTrackRawMask = 0x00U;
+    PI_TUNER_update10ms(4U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
+    PI_TUNER_update10ms(5U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
+    PI_TUNER_update10ms(6U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 0);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
+    assert(gMotor1Command == 0);
+    assert(gMotor2Command == 0);
+
+    gTrackRawMask = 0x04U;
+    PI_TUNER_update10ms(7U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 400);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 400);
+}
+
+static void testRunResumeStartsFromCurrentSensorState(void)
+{
+    resetModel();
+    feedBtPacket(0U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    gTrackRawMask = 0x10U;
+    feedBtPacket(1U, 400,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+
+    assert(WHEEL_SPEED_getRightTargetMmps() == 0);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
+    PI_TUNER_update10ms(1U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
 }
 
 int main(void)
 {
-    testStartsAutomaticallyAndOutputsOnlyNumericCsv();
-    testProfileRepeatsEveryTenSeconds();
-#if PI_TUNER_ENABLE_RESV1_TELEMETRY
-    testTelemetryPeriodIsTwentyMilliseconds();
-#endif
-    testSetCommandUpdatesPiSilently();
-    testIntegerSetCommandIsAccepted();
-    testInvalidCommandsAreIgnoredSilently();
-    testOverlongLineIsDiscardedAndNextLineRecovers();
-    testGainUpdateResetsPiOutput();
-    testResv1BytesAreForwardedUnchangedToBluetooth();
-    puts("pi tuner tests passed");
+    testBluetoothLinePidDrivesOuterLoop();
+    testInvalidLinePidRejectsWholePacket();
+    testRunZeroStopsImmediately();
+    testSensorDirectionLostLineAndRecovery();
+    testRunResumeStartsFromCurrentSensorState();
+    puts("pi tuner line-follow tests passed");
     return 0;
 }
 

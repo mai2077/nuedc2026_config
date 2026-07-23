@@ -9,11 +9,12 @@
 #define WHEEL_SPEED_TEST_TARGET_MMPS           (400)
 #define WHEEL_SPEED_MAX_TARGET_MMPS            (1500)
 #define WHEEL_SPEED_PWM_LIMIT                   (700)
+#define WHEEL_SPEED_BASE_FEEDFORWARD_PWM        (200)
 
 #define WHEEL_SPEED_RIGHT_KP_X100               (2000U)
 #define WHEEL_SPEED_RIGHT_KI_X100               (0)
 #define WHEEL_SPEED_LEFT_KP_X100                (2000U)
-#define WHEEL_SPEED_LEFT_KI_X100                (200U)
+#define WHEEL_SPEED_LEFT_KI_X100                (0)
 #define WHEEL_SPEED_KP_X100_MAX                 (10000U)
 #define WHEEL_SPEED_KI_X100_MAX                 (2000U)
 
@@ -29,6 +30,7 @@ typedef struct {
     int32_t errorMmps;
     int32_t proportionalPwm;
     int32_t integralPwm;
+    int32_t feedForwardPwm;
     int32_t derivativePwm;
     uint16_t kpX100;
     uint16_t kiX100;

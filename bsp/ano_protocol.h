@@ -10,6 +10,8 @@ extern "C" {
 #endif
 
 void ANO_sendImuFrame(const IMU_DATA_t *sample);
+void ANO_sendEulerFrame(
+    const ATTITUDE_DATA_t *attitude, uint8_t fusionStatus);
 int16_t ANO_accelToCmss(float value);
 int16_t ANO_gyroToCounts(float value);
 

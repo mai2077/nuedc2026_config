@@ -11,6 +11,7 @@ typedef struct {
     int32_t errorMmps;
     int32_t proportionalPwm;
     int32_t integralPwm;
+    int32_t feedForwardPwm;
     int32_t derivativePwm;
 } WheelSpeedPi;
 
@@ -47,6 +48,7 @@ static void wheelSpeedResetPi(WheelSpeedPi *controller)
     controller->outputPwm = 0;
     controller->proportionalPwm = 0;
     controller->integralPwm = 0;
+    controller->feedForwardPwm = 0;
     controller->derivativePwm = 0;
 }
 
@@ -73,6 +75,7 @@ static int16_t wheelSpeedUpdatePi(
     WheelSpeedPi *controller, int32_t measuredCounts10ms)
 {
     int32_t errorQ8;
+    int32_t feedForward;
     int32_t proportional;
     int32_t integralStep;
     int32_t candidateIntegral;
@@ -94,13 +97,16 @@ static int16_t wheelSpeedUpdatePi(
     proportional = wheelSpeedRoundDivide(
         (int64_t)errorQ8 * controller->kpX100,
         WHEEL_SPEED_Q8_SCALE * 100);
+    feedForward = (controller->targetMmps > 0) ?
+        WHEEL_SPEED_BASE_FEEDFORWARD_PWM :
+        -WHEEL_SPEED_BASE_FEEDFORWARD_PWM;
     integralStep = wheelSpeedRoundDivide(
         (int64_t)errorQ8 * controller->kiX100,
         WHEEL_SPEED_Q8_SCALE * 100);
     candidateIntegral = wheelSpeedClamp(
         controller->integralPwm + integralStep,
         -WHEEL_SPEED_PWM_LIMIT, WHEEL_SPEED_PWM_LIMIT);
-    candidateOutput = proportional + candidateIntegral;
+    candidateOutput = feedForward + proportional + candidateIntegral;
     limitedOutput = wheelSpeedClamp(candidateOutput,
         -WHEEL_SPEED_PWM_LIMIT, WHEEL_SPEED_PWM_LIMIT);
 
@@ -111,6 +117,7 @@ static int16_t wheelSpeedUpdatePi(
     }
 
     controller->proportionalPwm = proportional;
+    controller->feedForwardPwm = feedForward;
     controller->derivativePwm = 0;
     controller->outputPwm = (int16_t)limitedOutput;
     return controller->outputPwm;
@@ -159,6 +166,10 @@ uint8_t WHEEL_SPEED_setGainsX100(
     }
 
     controller = wheelSpeedController(wheel);
+    if ((controller->kpX100 == kpX100) &&
+        (controller->kiX100 == kiX100)) {
+        return 1U;
+    }
     controller->kpX100 = kpX100;
     controller->kiX100 = kiX100;
     wheelSpeedResetPi(controller);
@@ -183,6 +194,7 @@ void WHEEL_SPEED_getDiagnostics(
     diagnostics->errorMmps = controller->errorMmps;
     diagnostics->proportionalPwm = controller->proportionalPwm;
     diagnostics->integralPwm = controller->integralPwm;
+    diagnostics->feedForwardPwm = controller->feedForwardPwm;
     diagnostics->derivativePwm = controller->derivativePwm;
     diagnostics->kpX100 = controller->kpX100;
     diagnostics->kiX100 = controller->kiX100;

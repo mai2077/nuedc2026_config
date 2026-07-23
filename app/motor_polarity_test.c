@@ -1,7 +1,7 @@
 #include "motor_polarity_test.h"
 
-#include "key.h"
-#include "tb6612.h"
+#include "bsp/key.h"
+#include "bsp/tb6612.h"
 
 static int16_t MOTOR_POLARITY_TEST_pairCommand(
     uint8_t pressedMask, uint8_t positiveKey, uint8_t negativeKey)

@@ -1,0 +1,12 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+SHELL = cmd.exe
+
+# Each subdirectory must supply rules for building sources it contributes
+LeArm/Drivers/CMSIS/NN/Source/SoftmaxFunctions/%.o: ../LeArm/Drivers/CMSIS/NN/Source/SoftmaxFunctions/%.c $(GEN_OPTS) | $(GEN_FILES) $(GEN_MISC_FILES)
+	@echo 'Arm Compiler: "$<"'
+	"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/bin/tiarmclang.exe" -c @"device.opt"  -march=thumbv6m -mcpu=cortex-m0plus -mfloat-abi=soft -mlittle-endian -mthumb -O2 -I"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig" -I"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug" -I"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp" -I"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app" -I"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control" -I"C:/ti/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include" -I"C:/ti/mspm0_sdk_2_10_00_04/source" -gdwarf-3 -MMD -MP -MF"LeArm/Drivers/CMSIS/NN/Source/SoftmaxFunctions/$(basename $(<F)).d_raw" -MT"$(@)"  @"./device.opt" -o"$@" "$<"
+
+

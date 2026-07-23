@@ -1,9 +1,9 @@
 #include "wheel_speed_test.h"
 
-#include "encoder.h"
-#include "key.h"
-#include "tb6612.h"
-#include "wheel_speed.h"
+#include "bsp/encoder.h"
+#include "bsp/key.h"
+#include "bsp/tb6612.h"
+#include "control/wheel_speed.h"
 
 static int16_t wheelSpeedTestPairTarget(
     uint8_t pressedMask, uint8_t positiveKey, uint8_t negativeKey)

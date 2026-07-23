@@ -1,11 +1,12 @@
 #include <stdint.h>
 
 #include "ti_msp_dl_config.h"
-#include "bt_uart.h"
-#include "encoder.h"
-#include "oled.h"
-#include "pi_tuner.h"
-#include "wheel_speed.h"
+#include "app/pi_tuner.h"
+#include "bsp/bt_uart.h"
+#include "bsp/debug_uart.h"
+#include "bsp/encoder.h"
+#include "bsp/oled.h"
+#include "control/wheel_speed.h"
 
 volatile uint32_t gTick10ms;
 
@@ -97,12 +98,12 @@ int main(void)
 {
     uint32_t lastControlTick = 0U;
     uint32_t lastDisplayTick = 0U;
-    uint32_t lastBtTestTick = 0U;
 
     SYSCFG_DL_init();
+    BT_UART_initRxInterrupt();
+    DEBUG_UART_initRxInterrupt();
     ENCODER_init();
     PI_TUNER_init();
-    BT_UART_writeString("BT_UART_TEST\r\n");
 
     OLED_Init();
     OLED_ShowString(1U, 1U, "SP:");
@@ -133,10 +134,6 @@ int main(void)
             if ((uint32_t)(now - lastDisplayTick) >= 50U) {
                 lastDisplayTick = now;
                 displayBeginRightWheelRefresh();
-            }
-            if ((uint32_t)(now - lastBtTestTick) >= 100U) {
-                lastBtTestTick = now;
-                BT_UART_writeString("BT_UART_TEST\r\n");
             }
             if ((now & 1U) == 0U) {
                 displayUpdateOneCharacter();
