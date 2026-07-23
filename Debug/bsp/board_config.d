@@ -1,4 +1,0 @@
-# FIXED
-
-bsp/board_config.o: ../bsp/board_config.c ../bsp/board_config.h
-../bsp/board_config.h:

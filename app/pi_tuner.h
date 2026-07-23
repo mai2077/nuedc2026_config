@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-#include "wheel_speed.h"
+#include "control/wheel_speed.h"
 
-#ifndef PI_TUNER_ENABLE_RESV1_TELEMETRY
-#define PI_TUNER_ENABLE_RESV1_TELEMETRY (0U)
+#ifndef PI_TUNER_ENABLE_BT_TELEMETRY
+#define PI_TUNER_ENABLE_BT_TELEMETRY (1U)
 #endif
 
 void PI_TUNER_init(void);

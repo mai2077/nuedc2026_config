@@ -1,0 +1,26 @@
+# CCS build output and SysConfig-generated files
+Debug/
+Release/
+
+# Host-test sources and binaries are not part of the MCU firmware project.
+tests/
+*.exe
+
+# Local tooling, notes, and rendered documentation
+.clangd
+.obsidian/
+docs/
+tmp/
+README.html
+README.md
+targetConfigs/readme.txt
+*.pdf
+
+# Editor and operating-system files
+.vscode/
+.idea/
+*.user
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store

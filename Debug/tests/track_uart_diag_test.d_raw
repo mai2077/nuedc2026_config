@@ -1,1 +1,0 @@
-tests/track_uart_diag_test.o: ..\tests\track_uart_diag_test.c

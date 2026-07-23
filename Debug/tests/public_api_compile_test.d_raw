@@ -1,1 +1,0 @@
-tests/public_api_compile_test.o: ..\tests\public_api_compile_test.c

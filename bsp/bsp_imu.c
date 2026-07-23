@@ -16,6 +16,7 @@
 #define IMU_GYRO_LPF_ALPHA (0.80f)
 #define IMU_ACCEL_LPF_ALPHA (0.70f)
 #define IMU_MAG_LPF_ALPHA (0.85f)
+#define IMU_GYRO_Z_DEADBAND_RADPS (0.05f)
 #define IMU_EINT_LIMIT (2.0f)
 #define IMU_MIN_DT_S (0.001f)
 #define IMU_MAX_DT_S (0.050f)
@@ -75,6 +76,15 @@ static float imu_clampf(float value, float minimum, float maximum)
 static float imu_lpf(float previous, float current, float alpha)
 {
     return alpha * previous + (1.0f - alpha) * current;
+}
+
+static float imu_deadband_gyro_z(float value)
+{
+    if ((value > -IMU_GYRO_Z_DEADBAND_RADPS) &&
+        (value < IMU_GYRO_Z_DEADBAND_RADPS)) {
+        return 0.0f;
+    }
+    return value;
 }
 
 static int16_t imu_read_s16_be(const uint8_t *data)
@@ -493,6 +503,7 @@ static uint8_t icm_read_motion(IMU_DATA_t *output)
     sample.gyro.x -= g_icm_state.zero_point.gyro.x;
     sample.gyro.y -= g_icm_state.zero_point.gyro.y;
     sample.gyro.z -= g_icm_state.zero_point.gyro.z;
+    sample.gyro.z = imu_deadband_gyro_z(sample.gyro.z);
     sample.magn.x -= g_icm_state.zero_point.magn.x;
     sample.magn.y -= g_icm_state.zero_point.magn.y;
     sample.magn.z -= g_icm_state.zero_point.magn.z;
@@ -681,6 +692,7 @@ static uint8_t mpu_read_motion(IMU_DATA_t *output)
     sample.gyro.x -= g_mpu_state.zero_point.gyro.x;
     sample.gyro.y -= g_mpu_state.zero_point.gyro.y;
     sample.gyro.z -= g_mpu_state.zero_point.gyro.z;
+    sample.gyro.z = imu_deadband_gyro_z(sample.gyro.z);
     sample.magn.x -= g_mpu_state.zero_point.magn.x;
     sample.magn.y -= g_mpu_state.zero_point.magn.y;
     sample.magn.z -= g_mpu_state.zero_point.magn.z;
