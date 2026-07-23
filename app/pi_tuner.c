@@ -69,6 +69,8 @@ typedef enum {
 
 static uint8_t gRunning;
 static int16_t gTargetMmps;
+static int16_t gCurveBiasMmps;
+static uint32_t gCurveBiasRevision;
 static PI_TUNER_DebugMode gDebugMode;
 static uint8_t gDebugOutputStarted;
 static uint32_t gLastDebugOutputTick;
@@ -84,6 +86,8 @@ static PI_TUNER_FloatPid gOuterLinePid;
 static float gTargetYawDeg;
 static uint8_t gImuInitialized;
 static uint8_t gImuInitAttempted;
+static ATTITUDE_DATA_t gCurrentAttitude;
+static uint8_t gCurrentAttitudeValid;
 
 static int32_t piTunerFloatToMilli(float value);
 
@@ -181,15 +185,11 @@ static uint8_t piTunerPidIsFiniteNonnegative(PI_TUNER_FloatPid pid)
         (pid.p >= 0.0f) && (pid.i >= 0.0f) && (pid.d >= 0.0f));
 }
 
-static uint8_t piTunerReadCurrentYawDeg(float *yawDeg)
+static uint8_t piTunerUpdateCurrentAttitude(void)
 {
     IMU_DATA_t sample;
-    ATTITUDE_DATA_t attitude;
     pIMUInterface_t imuInterface;
 
-    if (yawDeg == 0) {
-        return 0U;
-    }
     if (piTunerEnsureImuInitialized(0U) == 0U) {
         return 0U;
     }
@@ -203,11 +203,7 @@ static uint8_t piTunerReadCurrentYawDeg(float *yawDeg)
         return 0U;
     }
 
-    attitude.roll = 0.0f;
-    attitude.pitch = 0.0f;
-    attitude.yaw = 0.0f;
-    imuInterface->UpdateAttitude(sample, &attitude);
-    *yawDeg = attitude.yaw * PI_TUNER_RAD_TO_DEG;
+    imuInterface->UpdateAttitude(sample, &gCurrentAttitude);
     return 1U;
 }
 
@@ -217,6 +213,7 @@ static void piTunerApplyMotorOutputs(void)
     TB6612_setMotor2(WHEEL_SPEED_getLeftPwm());
 }
 
+#if PI_TUNER_ENABLE_BT_TELEMETRY
 static void piTunerWriteFixed2Integer(int32_t value)
 {
     BT_UART_writeInt32(value);
@@ -232,8 +229,9 @@ static void piTunerWriteTelemetry(void)
 
     WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &rightDiagnostics);
     WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_LEFT, &leftDiagnostics);
-    currentYawDeg = 0.0f;
-    if (piTunerReadCurrentYawDeg(&currentYawDeg) == 0U) {
+    if (gCurrentAttitudeValid != 0U) {
+        currentYawDeg = gCurrentAttitude.yaw * PI_TUNER_RAD_TO_DEG;
+    } else {
         ANGLE_CONTROL_getOutput(&angleOutput);
         currentYawDeg = angleOutput.currentYawDeg;
     }
@@ -245,6 +243,7 @@ static void piTunerWriteTelemetry(void)
     BT_UART_writeSignedFixed3(piTunerFloatToMilli(currentYawDeg));
     BT_UART_writeString("\r\n");
 }
+#endif
 
 static uint16_t piTunerClampPwmU16(int32_t value)
 {
@@ -280,26 +279,27 @@ static void piTunerAnoWriteFrame(const uint8_t *buffer, uint8_t length)
     }
 }
 
-static int16_t piTunerClampTargetInt32(int32_t targetMmps)
+static int16_t piTunerClampCurveBiasInt32(int32_t curveBiasMmps)
 {
-    if (targetMmps > WHEEL_SPEED_MAX_TARGET_MMPS) {
-        return WHEEL_SPEED_MAX_TARGET_MMPS;
+    if (curveBiasMmps > PI_TUNER_FIXED_TARGET_MMPS) {
+        return PI_TUNER_FIXED_TARGET_MMPS;
     }
-    if (targetMmps < -WHEEL_SPEED_MAX_TARGET_MMPS) {
-        return -WHEEL_SPEED_MAX_TARGET_MMPS;
+    if (curveBiasMmps < -PI_TUNER_FIXED_TARGET_MMPS) {
+        return -PI_TUNER_FIXED_TARGET_MMPS;
     }
-    return (int16_t)targetMmps;
+    return (int16_t)curveBiasMmps;
 }
 
-static int32_t piTunerReadI32Le(const uint8_t *buffer, uint8_t offset)
+static void piTunerAdjustCurveBias(int16_t deltaMmps)
 {
-    uint32_t raw =
-        ((uint32_t)buffer[offset]) |
-        ((uint32_t)buffer[offset + 1U] << 8) |
-        ((uint32_t)buffer[offset + 2U] << 16) |
-        ((uint32_t)buffer[offset + 3U] << 24);
+    int16_t adjusted = piTunerClampCurveBiasInt32(
+        (int32_t)gCurveBiasMmps + deltaMmps);
 
-    return (int32_t)raw;
+    if (adjusted != gCurveBiasMmps) {
+        gCurveBiasMmps = adjusted;
+        LINE_FOLLOW_setCurveBiasMmps(gCurveBiasMmps);
+        ++gCurveBiasRevision;
+    }
 }
 
 static float piTunerReadFloatLe(const uint8_t *buffer, uint8_t offset)
@@ -500,25 +500,11 @@ static void piTunerWriteDebugPwmFrame(void)
 
 static void piTunerWriteDebugImuFrame(void)
 {
-    IMU_DATA_t sample;
-    ATTITUDE_DATA_t attitude;
-    pIMUInterface_t imuInterface;
-
-    if (piTunerEnsureImuInitialized(1U) == 0U) {
-        return;
+    if (piTunerUpdateCurrentAttitude() != 0U) {
+        gCurrentAttitudeValid = 1U;
     }
-
-    imuInterface = bsp_imu_get_interface();
-    if ((imuInterface == 0) || (imuInterface->UpdateAttitude == 0)) {
-        return;
-    }
-
-    if (bsp_imu_update_9axis_checked(&sample) == 0U) {
-        attitude.roll = 0.0f;
-        attitude.pitch = 0.0f;
-        attitude.yaw = 0.0f;
-        imuInterface->UpdateAttitude(sample, &attitude);
-        ANO_sendEulerFrame(&attitude, 0U);
+    if (gCurrentAttitudeValid != 0U) {
+        ANO_sendEulerFrame(&gCurrentAttitude, 0U);
     }
 }
 
@@ -857,36 +843,35 @@ static uint8_t piTunerHandleDebugDigitCommand(uint8_t data)
     return 0U;
 }
 
-static void piTunerCycleDebugModeFromButton(void)
-{
-    uint8_t command;
-
-    switch (gDebugMode) {
-        case PI_TUNER_DEBUG_MODE_PWM:
-            command = (uint8_t)'2';
-            break;
-        case PI_TUNER_DEBUG_MODE_IMU:
-            command = (uint8_t)'3';
-            break;
-        case PI_TUNER_DEBUG_MODE_PID:
-            command = (uint8_t)'1';
-            break;
-        default:
-            command = (uint8_t)'1';
-            break;
-    }
-
-    (void)piTunerHandleDebugDigitCommand(command);
-}
-
-static void piTunerScanDebugModeButton(void)
+static uint8_t piTunerScanButtons(void)
 {
     uint8_t stableMask;
 
-    if ((KEY_scan10ms(&stableMask) != false) &&
-        ((stableMask & KEY_MASK_KEY3) != 0U)) {
-        piTunerCycleDebugModeFromButton();
+    if (KEY_scan10ms(&stableMask) == false) {
+        return 0U;
     }
+
+    if ((gRunning == 0U) && ((stableMask & KEY_MASK_KEY1) != 0U)) {
+        gRunning = 1U;
+        LINE_FOLLOW_resetDynamics();
+        WHEEL_SPEED_setTargetsMmps(0, 0);
+        TB6612_stopAll();
+        return 1U;
+    }
+
+    if (gRunning == 0U) {
+        uint8_t increasePressed =
+            (uint8_t)(stableMask & KEY_MASK_KEY3);
+        uint8_t decreasePressed =
+            (uint8_t)(stableMask & KEY_MASK_KEY4);
+
+        if ((increasePressed != 0U) && (decreasePressed == 0U)) {
+            piTunerAdjustCurveBias(5);
+        } else if ((decreasePressed != 0U) && (increasePressed == 0U)) {
+            piTunerAdjustCurveBias(-5);
+        }
+    }
+    return 0U;
 }
 
 static void piTunerConsumeDebugByte(uint8_t data)
@@ -933,13 +918,14 @@ static void piTunerHandleBtPacket(const uint8_t *frame, uint8_t frameLength)
     PI_TUNER_FloatPid innerPid;
     PI_TUNER_FloatPid anglePid;
     PI_TUNER_FloatPid linePid;
-    int16_t targetMmps;
     float targetYawDeg;
-    uint8_t run;
-    uint8_t wasRunning;
     uint16_t kpX100;
     uint16_t kiX100;
     uint16_t kdX100;
+
+    if (gRunning == 0U) {
+        return;
+    }
 
     innerPid = piTunerReadFloatPid(frame, PI_TUNER_BT_INNER_PID_OFFSET);
     if ((piTunerFloatToX100(
@@ -957,10 +943,6 @@ static void piTunerHandleBtPacket(const uint8_t *frame, uint8_t frameLength)
     targetYawDeg = (frameLength >= PI_TUNER_BT_FRAME_LEN) ?
         piTunerReadFloatLe(frame, PI_TUNER_BT_TARGET_YAW_OFFSET) :
         gTargetYawDeg;
-    targetMmps = piTunerClampTargetInt32(
-        piTunerReadI32Le(frame, PI_TUNER_BT_SPEED_OFFSET));
-    run = (frame[PI_TUNER_BT_RUN_OFFSET] != 0U) ? 1U : 0U;
-
     if ((kdX100 != 0U) ||
         (piTunerPidIsFiniteNonnegative(anglePid) == 0U) ||
         (LINE_FOLLOW_pidIsValid(
@@ -971,38 +953,20 @@ static void piTunerHandleBtPacket(const uint8_t *frame, uint8_t frameLength)
         return;
     }
 
-    wasRunning = gRunning;
     gOuterAnglePid = anglePid;
     gOuterLinePid = linePid;
-    gTargetMmps = targetMmps;
-    ANGLE_CONTROL_setBaseSpeedMmps(targetMmps);
+    ANGLE_CONTROL_setBaseSpeedMmps(gTargetMmps);
     ANGLE_CONTROL_setPid(anglePid.p, anglePid.i, anglePid.d);
     gTargetYawDeg = targetYawDeg;
-
-    if ((run != 0U) && (wasRunning == 0U)) {
-        LINE_FOLLOW_init();
-    }
-    LINE_FOLLOW_setBaseSpeedMmps(targetMmps);
+    LINE_FOLLOW_setBaseSpeedMmps(gTargetMmps);
     (void)LINE_FOLLOW_setPid(linePid.p, linePid.i, linePid.d);
 
     piTunerReportBtPacketDecoded(
-        run, targetMmps, innerPid, anglePid, linePid, targetYawDeg);
+        1U, gTargetMmps, innerPid, anglePid, linePid, targetYawDeg);
 
     piTunerApplyCommonSpeedPid(
         DISPLAY_SOURCE_BLUETOOTH, kpX100, kiX100, kdX100);
 
-    gRunning = run;
-    if (gRunning == 0U) {
-        ANGLE_CONTROL_disable();
-        piTunerApplyTargets();
-        return;
-    }
-
-    ANGLE_CONTROL_disable();
-    if (wasRunning == 0U) {
-        WHEEL_SPEED_setTargetsMmps(0, 0);
-        TB6612_stopAll();
-    }
 }
 
 static void piTunerResetBtPacketState(void)
@@ -1086,10 +1050,13 @@ void PI_TUNER_init(void)
     LINE_FOLLOW_init();
     KEY_init();
     gTargetMmps = PI_TUNER_FIXED_TARGET_MMPS;
+    gCurveBiasMmps = 0;
+    gCurveBiasRevision = 0U;
     gTargetYawDeg = 0.0f;
     ANGLE_CONTROL_setBaseSpeedMmps(gTargetMmps);
     LINE_FOLLOW_setBaseSpeedMmps(gTargetMmps);
-    gRunning = 1U;
+    LINE_FOLLOW_setCurveBiasMmps(gCurveBiasMmps);
+    gRunning = 0U;
     piTunerApplyTargets();
     TB6612_stopAll();
     piTunerSelectDebugMode(PI_TUNER_DEBUG_MODE_NONE);
@@ -1108,6 +1075,10 @@ void PI_TUNER_init(void)
     gOuterLinePid.d = LINE_FOLLOW_DEFAULT_KD;
     gImuInitialized = 0U;
     gImuInitAttempted = 0U;
+    gCurrentAttitude.roll = 0.0f;
+    gCurrentAttitude.pitch = 0.0f;
+    gCurrentAttitude.yaw = 0.0f;
+    gCurrentAttitudeValid = 0U;
     piTunerPrintDebugMenu();
 }
 
@@ -1115,8 +1086,10 @@ void PI_TUNER_pollUart(void)
 {
     uint8_t data;
 
-    while (BT_UART_tryReadByte(&data) != 0U) {
-        piTunerConsumeBluetoothByte(data);
+    if (PI_TUNER_ENABLE_BT_COMMANDS != 0U) {
+        while (BT_UART_tryReadByte(&data) != 0U) {
+            piTunerConsumeBluetoothByte(data);
+        }
     }
 
     while (DEBUG_UART_tryReadByte(&data) != 0U) {
@@ -1128,11 +1101,15 @@ void PI_TUNER_update10ms(uint32_t tick10ms)
 {
     int32_t rightCounts10ms;
     int32_t leftCounts10ms;
+    uint8_t startedThisTick;
 
-    piTunerScanDebugModeButton();
+    startedThisTick = piTunerScanButtons();
 
     if (gRunning == 0U) {
         piTunerServiceDebugMode(tick10ms);
+        return;
+    }
+    if (startedThisTick != 0U) {
         return;
     }
 
@@ -1159,4 +1136,14 @@ void PI_TUNER_update10ms(uint32_t tick10ms)
 uint8_t PI_TUNER_isRunning(void)
 {
     return gRunning;
+}
+
+int16_t PI_TUNER_getCurveBiasMmps(void)
+{
+    return gCurveBiasMmps;
+}
+
+uint32_t PI_TUNER_getCurveBiasRevision(void)
+{
+    return gCurveBiasRevision;
 }

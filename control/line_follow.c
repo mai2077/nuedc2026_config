@@ -9,6 +9,7 @@
 
 typedef struct {
     int16_t baseSpeedMmps;
+    int16_t curveBiasMmps;
     float kp;
     float ki;
     float kd;
@@ -72,6 +73,7 @@ static void lineFollowWriteCommonOutput(
     gLineFollow.output.kp = gLineFollow.kp;
     gLineFollow.output.ki = gLineFollow.ki;
     gLineFollow.output.kd = gLineFollow.kd;
+    gLineFollow.output.curveBiasMmps = gLineFollow.curveBiasMmps;
 }
 
 static void lineFollowWriteStoppedOutput(
@@ -99,8 +101,10 @@ static void lineFollowWriteStraightOutput(
     gLineFollow.output.integralMmps = 0.0f;
     gLineFollow.output.derivativeMmps = 0.0f;
     gLineFollow.output.correctionMmps = 0.0f;
-    gLineFollow.output.rightTargetMmps = gLineFollow.baseSpeedMmps;
-    gLineFollow.output.leftTargetMmps = gLineFollow.baseSpeedMmps;
+    gLineFollow.output.rightTargetMmps = lineFollowClampTarget(
+        (int32_t)gLineFollow.baseSpeedMmps + gLineFollow.curveBiasMmps);
+    gLineFollow.output.leftTargetMmps = lineFollowClampTarget(
+        (int32_t)gLineFollow.baseSpeedMmps - gLineFollow.curveBiasMmps);
 }
 
 static float lineFollowPositionError(uint8_t activeMask)
@@ -160,14 +164,17 @@ static void lineFollowRunPid(uint8_t rawMask, uint8_t activeMask,
     gLineFollow.output.derivativeMmps = derivativeMmps;
     gLineFollow.output.correctionMmps = correctionMmps;
     gLineFollow.output.rightTargetMmps = lineFollowClampTarget(
-        (int32_t)gLineFollow.baseSpeedMmps - roundedCorrection);
+        (int32_t)gLineFollow.baseSpeedMmps + gLineFollow.curveBiasMmps -
+            roundedCorrection);
     gLineFollow.output.leftTargetMmps = lineFollowClampTarget(
-        (int32_t)gLineFollow.baseSpeedMmps + roundedCorrection);
+        (int32_t)gLineFollow.baseSpeedMmps - gLineFollow.curveBiasMmps +
+            roundedCorrection);
 }
 
 void LINE_FOLLOW_init(void)
 {
     gLineFollow.baseSpeedMmps = 0;
+    gLineFollow.curveBiasMmps = 0;
     gLineFollow.kp = LINE_FOLLOW_DEFAULT_KP;
     gLineFollow.ki = LINE_FOLLOW_DEFAULT_KI;
     gLineFollow.kd = LINE_FOLLOW_DEFAULT_KD;
@@ -178,6 +185,14 @@ void LINE_FOLLOW_init(void)
     gLineFollow.output.errorMm = 0.0f;
     lineFollowWriteStoppedOutput(
         0U, 0U, LINE_FOLLOW_STATE_LOST);
+}
+
+void LINE_FOLLOW_setCurveBiasMmps(int16_t curveBiasMmps)
+{
+    if (gLineFollow.curveBiasMmps != curveBiasMmps) {
+        gLineFollow.curveBiasMmps = curveBiasMmps;
+        LINE_FOLLOW_resetDynamics();
+    }
 }
 
 void LINE_FOLLOW_setBaseSpeedMmps(int16_t baseSpeedMmps)
@@ -214,6 +229,17 @@ uint8_t LINE_FOLLOW_setPid(float kp, float ki, float kd)
         lineFollowResetPidMemory();
     }
     return 1U;
+}
+
+void LINE_FOLLOW_resetDynamics(void)
+{
+    gLineFollow.lastValidErrorMm = 0.0f;
+    gLineFollow.hasLastValidError = 0U;
+    gLineFollow.lostLineTicks = 0U;
+    lineFollowResetPidMemory();
+    gLineFollow.output.errorMm = 0.0f;
+    lineFollowWriteStoppedOutput(
+        0U, 0U, LINE_FOLLOW_STATE_HOLD_LAST);
 }
 
 void LINE_FOLLOW_update10ms(uint8_t rawMask, LINE_FOLLOW_Output *output)

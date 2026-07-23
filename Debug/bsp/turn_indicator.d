@@ -1,6 +1,6 @@
 # FIXED
 
-app/main.o: ../app/main.c \
+bsp/turn_indicator.o: ../bsp/turn_indicator.c ../bsp/turn_indicator.h \
  ti_msp_dl_config.h \
  C:/ti/mspm0_sdk_2_10_00_04/source/ti/devices/msp/msp.h \
  C:/ti/mspm0_sdk_2_10_00_04/source/ti/devices/DeviceFamily.h \
@@ -83,12 +83,8 @@ app/main.o: ../app/main.c \
  C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/dl_vref.h \
  C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/dl_wwdt.h \
  C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_interrupt.h \
- C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_systick.h \
- D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app/pi_tuner.h \
- D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control/wheel_speed.h \
- D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/debug_uart.h \
- D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/encoder.h \
- D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/oled.h
+ C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_systick.h
+../bsp/turn_indicator.h:
 ti_msp_dl_config.h:
 C:/ti/mspm0_sdk_2_10_00_04/source/ti/devices/msp/msp.h:
 C:/ti/mspm0_sdk_2_10_00_04/source/ti/devices/DeviceFamily.h:
@@ -172,8 +168,3 @@ C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/dl_vref.h:
 C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/dl_wwdt.h:
 C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_interrupt.h:
 C:/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_systick.h:
-D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app/pi_tuner.h:
-D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control/wheel_speed.h:
-D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/debug_uart.h:
-D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/encoder.h:
-D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/oled.h:

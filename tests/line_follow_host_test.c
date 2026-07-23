@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "line_follow.h"
+#include "wheel_speed.h"
 
 static void assertNear(float actual, float expected, float tolerance)
 {
@@ -55,14 +56,16 @@ static void testWeightedAndSteeringDirection(void)
 static void testCorrectionAndForwardOnlyLimits(void)
 {
     LINE_FOLLOW_Output output;
+    int16_t correctionLimit =
+        (int16_t)LINE_FOLLOW_CORRECTION_MAX_MMPS;
 
     LINE_FOLLOW_init();
     LINE_FOLLOW_setBaseSpeedMmps(500);
     assert(LINE_FOLLOW_setPid(50.0f, 0.0f, 0.0f) != 0U);
     output = update(0x01U);
-    assertNear(output.correctionMmps, 150.0f, 0.001f);
-    assert(output.rightTargetMmps == 350);
-    assert(output.leftTargetMmps == 650);
+    assertNear(output.correctionMmps, (float)correctionLimit, 0.001f);
+    assert(output.rightTargetMmps == (int16_t)(500 - correctionLimit));
+    assert(output.leftTargetMmps == (int16_t)(500 + correctionLimit));
 
     LINE_FOLLOW_setBaseSpeedMmps(100);
     output = update(0x01U);
@@ -73,14 +76,15 @@ static void testCorrectionAndForwardOnlyLimits(void)
 static void testLostLineIntersectionAndRecovery(void)
 {
     LINE_FOLLOW_Output output;
+    uint8_t tick;
 
     LINE_FOLLOW_init();
     LINE_FOLLOW_setBaseSpeedMmps(500);
     output = update(0x01U);
-    output = update(0x00U);
-    assert(output.state == LINE_FOLLOW_STATE_HOLD_LAST);
-    output = update(0x00U);
-    assert(output.state == LINE_FOLLOW_STATE_HOLD_LAST);
+    for (tick = 1U; tick < LINE_FOLLOW_LOST_STOP_TICKS; ++tick) {
+        output = update(0x00U);
+        assert(output.state == LINE_FOLLOW_STATE_HOLD_LAST);
+    }
     output = update(0x00U);
     assert(output.state == LINE_FOLLOW_STATE_LOST);
     assert(output.rightTargetMmps == 0);
@@ -117,6 +121,56 @@ static void testLiveGainValidationAndReset(void)
     assert(LINE_FOLLOW_setPid(INFINITY, 0.0f, 0.0f) == 0U);
 }
 
+static void testDynamicsResetPreservesConfiguration(void)
+{
+    LINE_FOLLOW_Output output;
+
+    LINE_FOLLOW_init();
+    LINE_FOLLOW_setBaseSpeedMmps(500);
+    assert(LINE_FOLLOW_setPid(2.0f, 1.0f, 0.5f) != 0U);
+    (void)update(0x01U);
+    (void)update(0x10U);
+
+    LINE_FOLLOW_resetDynamics();
+    output = update(0x01U);
+    assertNear(output.kp, 2.0f, 0.001f);
+    assertNear(output.ki, 1.0f, 0.001f);
+    assertNear(output.kd, 0.5f, 0.001f);
+    assertNear(output.derivativeMmPerS, 0.0f, 0.001f);
+    assertNear(output.integralMmS, 0.43f, 0.001f);
+}
+
+static void testCurveBiasFeedForward(void)
+{
+    LINE_FOLLOW_Output output;
+
+    LINE_FOLLOW_init();
+    LINE_FOLLOW_setBaseSpeedMmps(500);
+    assert(LINE_FOLLOW_setPid(0.0f, 0.0f, 0.0f) != 0U);
+
+    LINE_FOLLOW_setCurveBiasMmps(80);
+    output = update(0x04U);
+    assert(output.curveBiasMmps == 80);
+    assert(output.rightTargetMmps == 580);
+    assert(output.leftTargetMmps == 420);
+
+    LINE_FOLLOW_setCurveBiasMmps(-60);
+    output = update(0x04U);
+    assert(output.curveBiasMmps == -60);
+    assert(output.rightTargetMmps == 440);
+    assert(output.leftTargetMmps == 560);
+
+    output = update(0x1FU);
+    assert(output.rightTargetMmps == 440);
+    assert(output.leftTargetMmps == 560);
+
+    LINE_FOLLOW_setBaseSpeedMmps(1450);
+    LINE_FOLLOW_setCurveBiasMmps(500);
+    output = update(0x04U);
+    assert(output.rightTargetMmps == WHEEL_SPEED_MAX_TARGET_MMPS);
+    assert(output.leftTargetMmps == 950);
+}
+
 int main(void)
 {
     testActiveHighSingleSensorPositions();
@@ -124,6 +178,8 @@ int main(void)
     testCorrectionAndForwardOnlyLimits();
     testLostLineIntersectionAndRecovery();
     testLiveGainValidationAndReset();
+    testDynamicsResetPreservesConfiguration();
+    testCurveBiasFeedForward();
     puts("line follow tests passed");
     return 0;
 }

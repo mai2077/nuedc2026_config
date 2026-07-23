@@ -18,6 +18,7 @@ ORDERED_OBJS += \
 "./app/motor_polarity_test.o" \
 "./app/pi_tuner.o" \
 "./app/robot_state.o" \
+"./app/square_navigation.o" \
 "./app/wheel_speed_test.o" \
 "./bsp/ano_protocol.o" \
 "./bsp/board_config.o" \
@@ -32,6 +33,7 @@ ORDERED_OBJS += \
 "./bsp/oled_soft_i2c.o" \
 "./bsp/tb6612.o" \
 "./bsp/track.o" \
+"./bsp/turn_indicator.o" \
 "./control/angle_control.o" \
 "./control/line_follow.o" \
 "./control/wheel_speed.o" \
@@ -164,8 +166,8 @@ nuedc2026_Pinconfig.out: $(OBJS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "app\display.o" "app\imu_diag_schedule.o" "app\main.o" "app\motor_polarity_test.o" "app\pi_tuner.o" "app\robot_state.o" "app\wheel_speed_test.o" "bsp\ano_protocol.o" "bsp\board_config.o" "bsp\bsp_iic.o" "bsp\bsp_imu.o" "bsp\bt_uart.o" "bsp\debug_uart.o" "bsp\encoder.o" "bsp\icm20948.o" "bsp\key.o" "bsp\oled.o" "bsp\oled_soft_i2c.o" "bsp\tb6612.o" "bsp\track.o" "control\angle_control.o" "control\line_follow.o" "control\wheel_speed.o" 
-	-$(RM) "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "app\display.d" "app\imu_diag_schedule.d" "app\main.d" "app\motor_polarity_test.d" "app\pi_tuner.d" "app\robot_state.d" "app\wheel_speed_test.d" "bsp\ano_protocol.d" "bsp\board_config.d" "bsp\bsp_iic.d" "bsp\bsp_imu.d" "bsp\bt_uart.d" "bsp\debug_uart.d" "bsp\encoder.d" "bsp\icm20948.d" "bsp\key.d" "bsp\oled.d" "bsp\oled_soft_i2c.d" "bsp\tb6612.d" "bsp\track.d" "control\angle_control.d" "control\line_follow.d" "control\wheel_speed.d" 
+	-$(RM) "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "app\display.o" "app\imu_diag_schedule.o" "app\main.o" "app\motor_polarity_test.o" "app\pi_tuner.o" "app\robot_state.o" "app\square_navigation.o" "app\wheel_speed_test.o" "bsp\ano_protocol.o" "bsp\board_config.o" "bsp\bsp_iic.o" "bsp\bsp_imu.o" "bsp\bt_uart.o" "bsp\debug_uart.o" "bsp\encoder.o" "bsp\icm20948.o" "bsp\key.o" "bsp\oled.o" "bsp\oled_soft_i2c.o" "bsp\tb6612.o" "bsp\track.o" "bsp\turn_indicator.o" "control\angle_control.o" "control\line_follow.o" "control\wheel_speed.o" 
+	-$(RM) "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "app\display.d" "app\imu_diag_schedule.d" "app\main.d" "app\motor_polarity_test.d" "app\pi_tuner.d" "app\robot_state.d" "app\square_navigation.d" "app\wheel_speed_test.d" "bsp\ano_protocol.d" "bsp\board_config.d" "bsp\bsp_iic.d" "bsp\bsp_imu.d" "bsp\bt_uart.d" "bsp\debug_uart.d" "bsp\encoder.d" "bsp\icm20948.d" "bsp\key.d" "bsp\oled.d" "bsp\oled_soft_i2c.d" "bsp\tb6612.d" "bsp\track.d" "bsp\turn_indicator.d" "control\angle_control.d" "control\line_follow.d" "control\wheel_speed.d" 
 	-@echo ' '
 
 .PHONY: all clean dependents

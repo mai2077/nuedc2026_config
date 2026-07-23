@@ -10,6 +10,8 @@
 #include "app/display.h"
 #include "app/pi_tuner.h"
 #include "bsp/bsp_imu.h"
+#include "bsp/key.h"
+#include "control/angle_control.h"
 #include "control/line_follow.h"
 #include "control/wheel_speed.h"
 
@@ -35,9 +37,14 @@ static size_t gBtRxIndex;
 static uint8_t gDebugRx[128];
 static size_t gDebugRxLength;
 static size_t gDebugRxIndex;
+static float gTestYawDeg;
+static uint8_t gTestImuReadResult;
+static uint16_t gTestImuInitCount;
+static uint8_t gKeyEventMask;
 
 static uint8_t testImuInit(void)
 {
+    ++gTestImuInitCount;
     return 0U;
 }
 
@@ -48,7 +55,7 @@ static void testImuUpdateAttitude(
     if (attitude != 0) {
         attitude->roll = 0.0f;
         attitude->pitch = 0.0f;
-        attitude->yaw = 0.0f;
+        attitude->yaw = gTestYawDeg / 57.295779513082320876f;
     }
 }
 
@@ -98,10 +105,12 @@ void KEY_init(void)
 
 bool KEY_scan10ms(uint8_t *stableMask)
 {
-    if (stableMask != 0) {
-        *stableMask = 0U;
+    if ((stableMask == 0) || (gKeyEventMask == 0U)) {
+        return false;
     }
-    return false;
+    *stableMask = gKeyEventMask;
+    gKeyEventMask = 0U;
+    return true;
 }
 
 void DEBUG_UART_writeByte(uint8_t data)
@@ -213,7 +222,7 @@ uint8_t bsp_imu_update_9axis_checked(IMU_DATA_t *sample)
     if (sample != 0) {
         memset(sample, 0, sizeof(*sample));
     }
-    return 0U;
+    return gTestImuReadResult;
 }
 
 void ANO_sendEulerFrame(
@@ -287,143 +296,151 @@ static void resetModel(void)
     gBtRxIndex = 0U;
     gDebugRxLength = 0U;
     gDebugRxIndex = 0U;
+    gTestYawDeg = 0.0f;
+    gTestImuReadResult = 0U;
+    gTestImuInitCount = 0U;
+    gKeyEventMask = 0U;
     PI_TUNER_init();
 }
 
-static void testBluetoothLinePidDrivesOuterLoop(void)
+static void pressKey(uint8_t keyMask, uint32_t tick10ms)
 {
-    WHEEL_SPEED_Diagnostics diagnostics;
-
-    resetModel();
-    feedBtPacket(1U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-    gTrackRawMask = 0x01U;
-    PI_TUNER_update10ms(1U);
-
-    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
-    assert(diagnostics.kpX100 == 2000U);
-    assert(diagnostics.kiX100 == 0U);
+    gKeyEventMask = keyMask;
+    PI_TUNER_update10ms(tick10ms);
 }
 
-static void testInvalidLinePidRejectsWholePacket(void)
+static void startCar(void)
 {
-    WHEEL_SPEED_Diagnostics diagnostics;
-
-    resetModel();
-    feedBtPacket(1U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-    feedBtPacket(1U, 800,
-        10.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        51.0f, 0.0f, 0.0f, 0.0f);
-    gTrackRawMask = 0x01U;
-    PI_TUNER_update10ms(1U);
-
-    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
-    WHEEL_SPEED_getDiagnostics(WHEEL_SPEED_WHEEL_RIGHT, &diagnostics);
-    assert(diagnostics.kpX100 == 2000U);
-    assert(diagnostics.kiX100 == 0U);
-}
-
-static void testRunZeroStopsImmediately(void)
-{
-    resetModel();
-    feedBtPacket(1U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-    gTrackRawMask = 0x01U;
-    PI_TUNER_update10ms(1U);
-    assert(gMotor1Command != 0);
-    assert(gMotor2Command != 0);
-
-    feedBtPacket(0U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-    assert(PI_TUNER_isRunning() == 0U);
+    pressKey(KEY_MASK_KEY1, 1U);
+    assert(PI_TUNER_isRunning() != 0U);
     assert(WHEEL_SPEED_getRightTargetMmps() == 0);
     assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
-    assert(gMotor1Command == 0);
-    assert(gMotor2Command == 0);
+}
+
+static void testWaitBiasKeysAndKeyStart(void)
+{
+    uint16_t step;
+    uint32_t revision;
+
+    resetModel();
+    assert(PI_TUNER_isRunning() == 0U);
+    assert(PI_TUNER_getCurveBiasMmps() == 0);
+
+    pressKey(KEY_MASK_KEY3, 1U);
+    assert(PI_TUNER_getCurveBiasMmps() == 5);
+    assert(PI_TUNER_getCurveBiasRevision() == 1U);
+
+    pressKey(KEY_MASK_KEY3, 2U);
+    assert(PI_TUNER_getCurveBiasMmps() == 10);
+    assert(PI_TUNER_getCurveBiasRevision() == 2U);
+
+    pressKey(KEY_MASK_KEY4, 3U);
+    assert(PI_TUNER_getCurveBiasMmps() == 5);
+    assert(PI_TUNER_getCurveBiasRevision() == 3U);
+
+    for (step = 0U; step < 99U; ++step) {
+        pressKey(KEY_MASK_KEY3, (uint32_t)(4U + step));
+    }
+    assert(PI_TUNER_getCurveBiasMmps() == 500);
+    revision = PI_TUNER_getCurveBiasRevision();
+    pressKey(KEY_MASK_KEY3, 103U);
+    assert(PI_TUNER_getCurveBiasMmps() == 500);
+    assert(PI_TUNER_getCurveBiasRevision() == revision);
+
+    pressKey(KEY_MASK_KEY1, 104U);
+    assert(PI_TUNER_isRunning() != 0U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 0);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
+
+    pressKey(KEY_MASK_KEY4, 105U);
+    assert(PI_TUNER_getCurveBiasMmps() == 500);
+}
+
+static void testBluetoothPacketsAreIgnored(void)
+{
+    resetModel();
+    feedBtPacket(1U, 80,
+        20.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,
+        2.0f, 0.0f, 0.0f, 0.0f);
+    assert(PI_TUNER_getCurveBiasMmps() == 0);
+    assert(PI_TUNER_getCurveBiasRevision() == 0U);
 }
 
 static void testSensorDirectionLostLineAndRecovery(void)
 {
+    uint8_t tick;
+
     resetModel();
-    feedBtPacket(1U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
+    startCar();
+    assert(LINE_FOLLOW_setPid(2.0f, 0.0f, 0.0f) != 0U);
 
     gTrackRawMask = 0x04U;
-    PI_TUNER_update10ms(1U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 400);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 400);
+    PI_TUNER_update10ms(2U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 500);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 500);
 
     gTrackRawMask = 0x01U;
-    PI_TUNER_update10ms(2U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 314);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 486);
+    PI_TUNER_update10ms(3U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 414);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 586);
 
     gTrackRawMask = 0x10U;
-    PI_TUNER_update10ms(3U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
+    PI_TUNER_update10ms(4U);
+    assert(WHEEL_SPEED_getRightTargetMmps() == 586);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 414);
 
     gTrackRawMask = 0x00U;
-    PI_TUNER_update10ms(4U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
-    PI_TUNER_update10ms(5U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
-    PI_TUNER_update10ms(6U);
+    for (tick = 1U; tick < LINE_FOLLOW_LOST_STOP_TICKS; ++tick) {
+        PI_TUNER_update10ms((uint32_t)(4U + tick));
+        assert(WHEEL_SPEED_getRightTargetMmps() == 586);
+        assert(WHEEL_SPEED_getLeftTargetMmps() == 414);
+    }
+    PI_TUNER_update10ms(
+        (uint32_t)(4U + LINE_FOLLOW_LOST_STOP_TICKS));
     assert(WHEEL_SPEED_getRightTargetMmps() == 0);
     assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
     assert(gMotor1Command == 0);
     assert(gMotor2Command == 0);
 
     gTrackRawMask = 0x04U;
-    PI_TUNER_update10ms(7U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 400);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 400);
+    PI_TUNER_update10ms(
+        (uint32_t)(5U + LINE_FOLLOW_LOST_STOP_TICKS));
+    assert(WHEEL_SPEED_getRightTargetMmps() == 500);
+    assert(WHEEL_SPEED_getLeftTargetMmps() == 500);
 }
 
-static void testRunResumeStartsFromCurrentSensorState(void)
+static void testCornerPatternStaysInLineFollowing(void)
+{
+    uint8_t tick;
+
+    resetModel();
+    startCar();
+    assert(LINE_FOLLOW_setPid(2.0f, 0.0f, 0.0f) != 0U);
+    gTrackRawMask = 0x1CU;
+
+    for (tick = 2U; tick < 22U; ++tick) {
+        PI_TUNER_update10ms(tick);
+        assert(WHEEL_SPEED_getRightTargetMmps() == 539);
+        assert(WHEEL_SPEED_getLeftTargetMmps() == 461);
+    }
+}
+
+static void testLineFollowingDoesNotInitializeImu(void)
 {
     resetModel();
-    feedBtPacket(0U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-    gTrackRawMask = 0x10U;
-    feedBtPacket(1U, 400,
-        20.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,
-        2.0f, 0.0f, 0.0f, 0.0f);
-
-    assert(WHEEL_SPEED_getRightTargetMmps() == 0);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 0);
-    PI_TUNER_update10ms(1U);
-    assert(WHEEL_SPEED_getRightTargetMmps() == 486);
-    assert(WHEEL_SPEED_getLeftTargetMmps() == 314);
+    startCar();
+    PI_TUNER_update10ms(2U);
+    assert(gTestImuInitCount == 0U);
 }
 
 int main(void)
 {
-    testBluetoothLinePidDrivesOuterLoop();
-    testInvalidLinePidRejectsWholePacket();
-    testRunZeroStopsImmediately();
+    testWaitBiasKeysAndKeyStart();
+    testBluetoothPacketsAreIgnored();
     testSensorDirectionLostLineAndRecovery();
-    testRunResumeStartsFromCurrentSensorState();
+    testCornerPatternStaysInLineFollowing();
+    testLineFollowingDoesNotInitializeImu();
     puts("pi tuner line-follow tests passed");
     return 0;
 }

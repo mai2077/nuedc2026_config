@@ -1,0 +1,6 @@
+app/display.o: ..\app\display.c ..\app\display.h \
+  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\debug_uart.h \
+  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\oled.h
+..\app\display.h:
+D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\debug_uart.h:
+D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\oled.h:

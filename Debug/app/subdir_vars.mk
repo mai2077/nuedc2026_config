@@ -12,6 +12,7 @@ C_SRCS += \
 ../app/motor_polarity_test.c \
 ../app/pi_tuner.c \
 ../app/robot_state.c \
+../app/square_navigation.c \
 ../app/wheel_speed_test.c 
 
 C_DEPS += \
@@ -21,6 +22,7 @@ C_DEPS += \
 ./app/motor_polarity_test.d \
 ./app/pi_tuner.d \
 ./app/robot_state.d \
+./app/square_navigation.d \
 ./app/wheel_speed_test.d 
 
 OBJS += \
@@ -30,6 +32,7 @@ OBJS += \
 ./app/motor_polarity_test.o \
 ./app/pi_tuner.o \
 ./app/robot_state.o \
+./app/square_navigation.o \
 ./app/wheel_speed_test.o 
 
 OBJS__QUOTED += \
@@ -39,6 +42,7 @@ OBJS__QUOTED += \
 "app\motor_polarity_test.o" \
 "app\pi_tuner.o" \
 "app\robot_state.o" \
+"app\square_navigation.o" \
 "app\wheel_speed_test.o" 
 
 C_DEPS__QUOTED += \
@@ -48,6 +52,7 @@ C_DEPS__QUOTED += \
 "app\motor_polarity_test.d" \
 "app\pi_tuner.d" \
 "app\robot_state.d" \
+"app\square_navigation.d" \
 "app\wheel_speed_test.d" 
 
 C_SRCS__QUOTED += \
@@ -57,6 +62,7 @@ C_SRCS__QUOTED += \
 "../app/motor_polarity_test.c" \
 "../app/pi_tuner.c" \
 "../app/robot_state.c" \
+"../app/square_navigation.c" \
 "../app/wheel_speed_test.c" 
 
 

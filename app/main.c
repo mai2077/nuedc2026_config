@@ -1,8 +1,8 @@
 #include <stdint.h>
 
 #include "ti_msp_dl_config.h"
+#include "app/display.h"
 #include "app/pi_tuner.h"
-#include "bsp/bt_uart.h"
 #include "bsp/debug_uart.h"
 #include "bsp/encoder.h"
 #include "bsp/oled.h"
@@ -94,30 +94,34 @@ static void displayUpdateOneCharacter(void)
     ++gDisplayCharacterIndex;
 }
 
+static void displayShowWaitPage(void)
+{
+    OLED_Clear();
+    OLED_ShowString(1U, 1U, "WAIT KEY1");
+    OLED_ShowString(2U, 1U, "CURVE BIAS:");
+    OLED_ShowSignedNum(3U, 1U, PI_TUNER_getCurveBiasMmps(), 4U);
+    OLED_ShowString(3U, 7U, "mm/s");
+}
+
+static void displayRefreshCurveBias(void)
+{
+    OLED_ShowSignedNum(3U, 1U, PI_TUNER_getCurveBiasMmps(), 4U);
+}
+
 int main(void)
 {
     uint32_t lastControlTick = 0U;
     uint32_t lastDisplayTick = 0U;
+    uint32_t lastCurveBiasRevision;
 
     SYSCFG_DL_init();
-    BT_UART_initRxInterrupt();
     DEBUG_UART_initRxInterrupt();
     ENCODER_init();
     PI_TUNER_init();
 
     OLED_Init();
-    OLED_ShowString(1U, 1U, "SP:");
-    OLED_ShowString(1U, 10U, "V:");
-    OLED_ShowString(2U, 1U, "PWM:");
-    OLED_ShowString(3U, 1U, "P:");
-    OLED_ShowChar(3U, 6U, '.');
-    OLED_ShowString(4U, 1U, "I:");
-    OLED_ShowChar(4U, 6U, '.');
-    OLED_ShowString(4U, 10U, "D:0");
-    displayBeginRightWheelRefresh();
-    while (gDisplayCharacterIndex < DISPLAY_DYNAMIC_CHAR_COUNT) {
-        displayUpdateOneCharacter();
-    }
+    displayShowWaitPage();
+    lastCurveBiasRevision = PI_TUNER_getCurveBiasRevision();
 
     gTick10ms = 0U;
     NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
@@ -125,18 +129,38 @@ int main(void)
 
     while (1) {
         uint32_t now = gTick10ms;
+        uint32_t curveBiasRevision;
 
         PI_TUNER_pollUart();
+        curveBiasRevision = PI_TUNER_getCurveBiasRevision();
+        if ((PI_TUNER_isRunning() == 0U) &&
+            (curveBiasRevision != lastCurveBiasRevision)) {
+            lastCurveBiasRevision = curveBiasRevision;
+            displayRefreshCurveBias();
+        }
 
         if (now != lastControlTick) {
+            uint8_t wasRunning = PI_TUNER_isRunning();
+
             lastControlTick = now;
             PI_TUNER_update10ms(now);
-            if ((uint32_t)(now - lastDisplayTick) >= 50U) {
+            if ((wasRunning == 0U) && (PI_TUNER_isRunning() != 0U)) {
+                DISPLAY_oledBeginRunPage();
                 lastDisplayTick = now;
-                displayBeginRightWheelRefresh();
             }
-            if ((now & 1U) == 0U) {
-                displayUpdateOneCharacter();
+
+            if (PI_TUNER_isRunning() != 0U) {
+                if (DISPLAY_oledRunPageReady() == 0U) {
+                    DISPLAY_oledService();
+                } else {
+                    if ((uint32_t)(now - lastDisplayTick) >= 50U) {
+                        lastDisplayTick = now;
+                        displayBeginRightWheelRefresh();
+                    }
+                    if ((now & 1U) == 0U) {
+                        displayUpdateOneCharacter();
+                    }
+                }
             }
         }
     }

@@ -64,6 +64,12 @@ extern GPTIMER_Regs gTestTIMG6;
 #define KEY_KEY3_PIN      (1U << 3)
 #define KEY_KEY4_PIN      (1U << 8)
 
+#define BUZZER_PORT       (&gTestGPIOB)
+#define BUZZER_PIN_PIN    (1U << 6)
+#define LED_PORT          (&gTestGPIOA)
+#define LED_LED1_PIN      (1U << 8)
+#define LED_LED2_PIN      (1U << 9)
+
 #define RESV1_UART_INST   (&gTestUART0)
 #define BT_UART_INST      (&gTestUART2)
 #define ICM_I2C_INST      (&gTestI2C0)

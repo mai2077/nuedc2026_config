@@ -18,7 +18,8 @@ C_SRCS += \
 ../bsp/oled.c \
 ../bsp/oled_soft_i2c.c \
 ../bsp/tb6612.c \
-../bsp/track.c 
+../bsp/track.c \
+../bsp/turn_indicator.c 
 
 C_DEPS += \
 ./bsp/ano_protocol.d \
@@ -33,7 +34,8 @@ C_DEPS += \
 ./bsp/oled.d \
 ./bsp/oled_soft_i2c.d \
 ./bsp/tb6612.d \
-./bsp/track.d 
+./bsp/track.d \
+./bsp/turn_indicator.d 
 
 OBJS += \
 ./bsp/ano_protocol.o \
@@ -48,7 +50,8 @@ OBJS += \
 ./bsp/oled.o \
 ./bsp/oled_soft_i2c.o \
 ./bsp/tb6612.o \
-./bsp/track.o 
+./bsp/track.o \
+./bsp/turn_indicator.o 
 
 OBJS__QUOTED += \
 "bsp\ano_protocol.o" \
@@ -63,7 +66,8 @@ OBJS__QUOTED += \
 "bsp\oled.o" \
 "bsp\oled_soft_i2c.o" \
 "bsp\tb6612.o" \
-"bsp\track.o" 
+"bsp\track.o" \
+"bsp\turn_indicator.o" 
 
 C_DEPS__QUOTED += \
 "bsp\ano_protocol.d" \
@@ -78,7 +82,8 @@ C_DEPS__QUOTED += \
 "bsp\oled.d" \
 "bsp\oled_soft_i2c.d" \
 "bsp\tb6612.d" \
-"bsp\track.d" 
+"bsp\track.d" \
+"bsp\turn_indicator.d" 
 
 C_SRCS__QUOTED += \
 "../bsp/ano_protocol.c" \
@@ -93,6 +98,7 @@ C_SRCS__QUOTED += \
 "../bsp/oled.c" \
 "../bsp/oled_soft_i2c.c" \
 "../bsp/tb6612.c" \
-"../bsp/track.c" 
+"../bsp/track.c" \
+"../bsp/turn_indicator.c" 
 
 

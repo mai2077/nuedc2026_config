@@ -17,4 +17,8 @@ void DISPLAY_reportPidApplied(
 void DISPLAY_reportCommandRejected(
     DISPLAY_Source source, const char *reason);
 
+void DISPLAY_oledBeginRunPage(void);
+void DISPLAY_oledService(void);
+uint8_t DISPLAY_oledRunPageReady(void);
+
 #endif /* DISPLAY_H_ */
