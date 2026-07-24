@@ -8,6 +8,7 @@ SHELL = cmd.exe
 C_SRCS += \
 ../bsp/ano_protocol.c \
 ../bsp/board_config.c \
+../bsp/bsp_ZDT_Servo_emm_v5.c \
 ../bsp/bsp_iic.c \
 ../bsp/bsp_imu.c \
 ../bsp/bt_uart.c \
@@ -24,6 +25,7 @@ C_SRCS += \
 C_DEPS += \
 ./bsp/ano_protocol.d \
 ./bsp/board_config.d \
+./bsp/bsp_ZDT_Servo_emm_v5.d \
 ./bsp/bsp_iic.d \
 ./bsp/bsp_imu.d \
 ./bsp/bt_uart.d \
@@ -40,6 +42,7 @@ C_DEPS += \
 OBJS += \
 ./bsp/ano_protocol.o \
 ./bsp/board_config.o \
+./bsp/bsp_ZDT_Servo_emm_v5.o \
 ./bsp/bsp_iic.o \
 ./bsp/bsp_imu.o \
 ./bsp/bt_uart.o \
@@ -56,6 +59,7 @@ OBJS += \
 OBJS__QUOTED += \
 "bsp\ano_protocol.o" \
 "bsp\board_config.o" \
+"bsp\bsp_ZDT_Servo_emm_v5.o" \
 "bsp\bsp_iic.o" \
 "bsp\bsp_imu.o" \
 "bsp\bt_uart.o" \
@@ -72,6 +76,7 @@ OBJS__QUOTED += \
 C_DEPS__QUOTED += \
 "bsp\ano_protocol.d" \
 "bsp\board_config.d" \
+"bsp\bsp_ZDT_Servo_emm_v5.d" \
 "bsp\bsp_iic.d" \
 "bsp\bsp_imu.d" \
 "bsp\bt_uart.d" \
@@ -88,6 +93,7 @@ C_DEPS__QUOTED += \
 C_SRCS__QUOTED += \
 "../bsp/ano_protocol.c" \
 "../bsp/board_config.c" \
+"../bsp/bsp_ZDT_Servo_emm_v5.c" \
 "../bsp/bsp_iic.c" \
 "../bsp/bsp_imu.c" \
 "../bsp/bt_uart.c" \

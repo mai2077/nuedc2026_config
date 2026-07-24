@@ -6,6 +6,7 @@ SHELL = cmd.exe
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../app/ZDT_Servo_test.c \
 ../app/display.c \
 ../app/imu_diag_schedule.c \
 ../app/main.c \
@@ -16,6 +17,7 @@ C_SRCS += \
 ../app/wheel_speed_test.c 
 
 C_DEPS += \
+./app/ZDT_Servo_test.d \
 ./app/display.d \
 ./app/imu_diag_schedule.d \
 ./app/main.d \
@@ -26,6 +28,7 @@ C_DEPS += \
 ./app/wheel_speed_test.d 
 
 OBJS += \
+./app/ZDT_Servo_test.o \
 ./app/display.o \
 ./app/imu_diag_schedule.o \
 ./app/main.o \
@@ -36,6 +39,7 @@ OBJS += \
 ./app/wheel_speed_test.o 
 
 OBJS__QUOTED += \
+"app\ZDT_Servo_test.o" \
 "app\display.o" \
 "app\imu_diag_schedule.o" \
 "app\main.o" \
@@ -46,6 +50,7 @@ OBJS__QUOTED += \
 "app\wheel_speed_test.o" 
 
 C_DEPS__QUOTED += \
+"app\ZDT_Servo_test.d" \
 "app\display.d" \
 "app\imu_diag_schedule.d" \
 "app\main.d" \
@@ -56,6 +61,7 @@ C_DEPS__QUOTED += \
 "app\wheel_speed_test.d" 
 
 C_SRCS__QUOTED += \
+"../app/ZDT_Servo_test.c" \
 "../app/display.c" \
 "../app/imu_diag_schedule.c" \
 "../app/main.c" \

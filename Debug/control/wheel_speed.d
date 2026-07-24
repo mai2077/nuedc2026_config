@@ -1,4 +1,0 @@
-# FIXED
-
-control/wheel_speed.o: ../control/wheel_speed.c ../control/wheel_speed.h
-../control/wheel_speed.h:

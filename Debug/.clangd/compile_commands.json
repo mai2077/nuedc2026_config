@@ -128,5 +128,15 @@
       "directory" : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug",
       "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/lib/clang/22/include\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c\" -xc",
       "file"      : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/turn_indicator.c"
+   },
+   {
+      "directory" : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/lib/clang/22/include\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c\" -xc",
+      "file"      : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp/bsp_ZDT_Servo_emm_v5.c"
+   },
+   {
+      "directory" : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/Debug\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/bsp\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app\" -I\"D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/control\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"C:/ti/mspm0_sdk_2_10_00_04/source\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c++/v1\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/lib/clang/22/include\" -isystem\"C:/ti/ccs2100/ccs/tools/compiler/ti-cgt-armllvm_5.1.1.LTS/include/c\" -xc",
+      "file"      : "D:/MCU_Development/TI/MSPM0/nuedc2026_Pinconfig/app/ZDT_Servo_test.c"
    }
 ]

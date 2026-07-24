@@ -1,5 +1,4 @@
-app/main.o: ..\app\main.c \
-  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\Debug\ti_msp_dl_config.h \
+ti_msp_dl_config.o: ti_msp_dl_config.c ti_msp_dl_config.h \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\msp\msp.h \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\DeviceFamily.h \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\msp\m0p\mspm0g350x.h \
@@ -81,11 +80,8 @@ app/main.o: ..\app\main.c \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\dl_vref.h \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\dl_wwdt.h \
   C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\m0p\dl_interrupt.h \
-  C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\m0p\dl_systick.h \
-  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\app\ZDT_Servo_test.h \
-  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\bsp_ZDT_Servo_emm_v5.h \
-  D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\key.h
-D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\Debug\ti_msp_dl_config.h:
+  C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\m0p\dl_systick.h
+ti_msp_dl_config.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\msp\msp.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\DeviceFamily.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\devices\msp\m0p\mspm0g350x.h:
@@ -168,6 +164,3 @@ C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\dl_vref.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\dl_wwdt.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\m0p\dl_interrupt.h:
 C:\ti\mspm0_sdk_2_10_00_04\source\ti\driverlib\m0p\dl_systick.h:
-D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\app\ZDT_Servo_test.h:
-D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\bsp_ZDT_Servo_emm_v5.h:
-D:\MCU_Development\TI\MSPM0\nuedc2026_Pinconfig\bsp\key.h:

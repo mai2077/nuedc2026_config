@@ -45,6 +45,7 @@ typedef enum {
 extern GPIO_Regs gTestGPIOB;
 extern GPIO_Regs gTestGPIOA;
 extern UART_Regs gTestUART0;
+extern UART_Regs gTestUART1;
 extern UART_Regs gTestUART2;
 extern I2C_Regs gTestI2C0;
 extern GPTIMER_Regs gTestTIMA0;
@@ -71,6 +72,7 @@ extern GPTIMER_Regs gTestTIMG6;
 #define LED_LED2_PIN      (1U << 9)
 
 #define RESV1_UART_INST   (&gTestUART0)
+#define STEP1_UART_INST   (&gTestUART1)
 #define BT_UART_INST      (&gTestUART2)
 #define ICM_I2C_INST      (&gTestI2C0)
 #define TB_PWM_INST       (&gTestTIMA1)

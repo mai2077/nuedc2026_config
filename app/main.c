@@ -1,6 +1,26 @@
 #include <stdint.h>
 
 #include "ti_msp_dl_config.h"
+#include "app/ZDT_Servo_test.h"
+
+#if ZDT_SERVO_STANDALONE_TEST
+
+#include "bsp/key.h"
+
+int main(void)
+{
+    SYSCFG_DL_init();
+    KEY_init();
+    ZDT_Servo_Test_init();
+
+    while (1) {
+        delay_cycles(CPUCLK_FREQ / 100U);
+        ZDT_Servo_Test_update10ms();
+    }
+}
+
+#else
+
 #include "app/display.h"
 #include "app/pi_tuner.h"
 #include "bsp/debug_uart.h"
@@ -177,3 +197,5 @@ void TIMER_0_INST_IRQHandler(void)
             break;
     }
 }
+
+#endif /* ZDT_SERVO_STANDALONE_TEST */
